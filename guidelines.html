@@ -18,6 +18,7 @@ word-break: break-all;
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
 
@@ -31,6 +32,7 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(function(user){
 
@@ -243,7 +245,6 @@ function sendQuery(){
 const email = document.getElementById("qEmail").value.trim();
 const message = document.getElementById("qMessage").value.trim();
 
-/* email format check */
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 if(email === "" || message === ""){
@@ -256,18 +257,27 @@ showToast("Please enter a valid email address");
 return;
 }
 
-/* convert email to lowercase */
 const cleanEmail = email.toLowerCase();
 
-/* later this goes to Firebase */
-console.log("Email:", cleanEmail);
-console.log("Query:", message);
+/* SAVE TO FIREBASE */
 
-/* clear fields */
+db.collection("queries").add({
+email: cleanEmail,
+message: message,
+date: new Date()
+})
+
+.then(()=>{
+showToast("Query sent successfully");
+
 document.getElementById("qEmail").value="";
 document.getElementById("qMessage").value="";
+})
 
-showToast("Query sent successfully");
+.catch((error)=>{
+console.error(error);
+showToast("Error sending query");
+});
 
 }
 /* CHECK PRO STATUS */
