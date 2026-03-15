@@ -182,9 +182,13 @@ description: "Pro Plan Upgrade",
 
 handler: function (response){
 
-console.log(response.razorpay_payment_id);
+if(response.razorpay_payment_id){
+
+console.log("Payment ID:", response.razorpay_payment_id);
 
 activatePro();
+
+}
 
 }
 
