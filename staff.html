@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Staff Management</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body{
+display:none;
+}
+</style>
+<!-- FIREBASE AUTH PROTECTION -->
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
+  authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
+  projectId: "timetablemanagementsyste-45fd9",
+  storageBucket: "timetablemanagementsyste-45fd9.firebasestorage.app",
+  messagingSenderId: "905343636728",
+  appId: "1:905343636728:web:91124de4d8a8160af5d70d"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+firebase.auth().onAuthStateChanged(function(user){
+
+if(user){
+document.body.style.display = "block";
+}
+else{
+window.location.replace("index.html");
+}
+
+});
+
+</script>
+
+<style>
+
+/* makes long email wrap properly */
+#userEmail{
+word-break: break-all;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+<div class="sidebar-header">
+<h1>VELS</h1>
+<p>Timetable Management System</p>
+</div>
+
+<ul>
+<li><a href="dashboard.html">Dashboard</a></li>
+<li><a href="department.html">Department Setup</a></li>
+<li><a href="subject.html">Subject Management</a></li>
+<li><a href="staff.html">Staff Management</a></li>
+<li><a href="section.html">Section Management</a></li>
+<li><a href="generate.html">Generate Timetable</a></li>
+<li><a href="view.html">View Timetable</a></li>
+<li><a href="guidelines.html">System Guidelines</a></li>
+</ul>
+
+<div class="logout-section">
+
+<div class="signed-in">
+<small>Signed in as</small>
+<p id="userEmail"></p>
+</div>
+
+<div class="logout-link" onclick="logout()">⬅ Logout</div>
+
+</div>
+
+</div>
+
+
+<!-- CONTENT AREA -->
+<div class="content-area">
+
+<div class="top-navbar">
+
+<span class="system-title">
+VELS Faculty Scheduling System
+</span>
+
+
+</div>
+
+<div class="dashboard-header">
+<h1>Staff Management</h1>
+<p>Manage staff and assign subjects</p>
+</div>
+
+
+<!-- FORM -->
+<div class="form-card">
+
+<h3>Add Staff Member</h3>
+
+<div class="form-grid">
+
+<div>
+<label>Staff Name</label>
+<input type="text" id="staffName" placeholder="e.g. Dr. Smith">
+</div>
+
+<div>
+<label>Department</label>
+<select id="staffDept" onchange="loadSections()">
+<option value="">Select Department</option>
+</select>
+</div>
+
+<div>
+<label>Section</label>
+<select id="staffSection">
+<option value="">Select Section</option>
+</select>
+</div>
+
+<div>
+<label>Assign Subject</label>
+<select id="staffSubject">
+<option value="">Select Subject</option>
+</select>
+</div>
+
+<div>
+<label>Max Workload (periods/week)</label>
+<input type="number" id="maxLoad" value="0" min="0" max="40">
+</div>
+
+<div class="add-btn-box">
+<button type="button" onclick="addStaff()">+ Add Subject</button>
+</div>
+
+</div>
+</div>
+
+
+<!-- STAFF TABLE -->
+
+<div class="table-card">
+
+<table>
+
+<thead>
+<tr>
+<th>Name</th>
+<th>Subject</th>
+<th>Department</th>
+<th>Section</th>
+<th>Max Load</th>
+<th>Actions</th>
+</tr>
+</thead>
+
+<tbody id="staffTable"></tbody>
+
+</table>
+
+</div>
+
+</div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+
+<script>
+
+/* SHOW LOGGED USER EMAIL */
+
+firebase.auth().onAuthStateChanged(function(user){
+
+if(user){
+
+document.body.style.display = "block";
+
+const emailElement = document.getElementById("userEmail");
+
+if(emailElement){
+emailElement.innerText = user.email;
+}
+
+}
+else{
+window.location.replace("index.html");
+}
+
+});
+
+/* LOGOUT */
+function logout(){
+
+firebase.auth().signOut().then(()=>{
+window.location.replace("index.html");
+});
+
+}
+/* CHECK PRO STATUS */
+
+if(localStorage.getItem("isProUser") === null){
+localStorage.setItem("isProUser","false");
+}
+
+/* TOAST */
+
+function showToast(message){
+
+const toast=document.getElementById("toast");
+
+toast.innerText=message;
+
+toast.classList.add("show");
+
+setTimeout(()=>toast.classList.remove("show"),3000);
+
+}
+
+
+/* LOAD DEPARTMENTS */
+
+function loadDepartments(){
+
+const departments=JSON.parse(localStorage.getItem("departments"))||[];
+
+const deptSelect=document.getElementById("staffDept");
+
+deptSelect.innerHTML=`<option value="">Select Department</option>`;
+
+departments.forEach(dep=>{
+deptSelect.innerHTML+=`<option value="${dep.name}">${dep.name}</option>`;
+});
+
+}
+
+
+/* LOAD SUBJECTS */
+
+function loadSubjects(){
+
+const subjects=JSON.parse(localStorage.getItem("subjects"))||[];
+
+const subjectSelect=document.getElementById("staffSubject");
+
+subjectSelect.innerHTML=`<option value="">Select Subject</option>`;
+
+subjects.forEach(sub=>{
+subjectSelect.innerHTML+=`<option value="${sub.name}">${sub.name}</option>`;
+});
+
+}
+
+
+/* LOAD SECTIONS */
+
+function loadSections(){
+
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+
+const dept = document.getElementById("staffDept").value;
+
+const sectionSelect = document.getElementById("staffSection");
+
+sectionSelect.innerHTML = `<option value="">Select Section</option>`;
+
+departments.forEach(dep => {
+
+if(dep.name === dept){
+
+let totalSections = Number(dep.sections);
+
+for(let i=0;i<totalSections;i++){
+
+let sectionLetter = String.fromCharCode(65 + i);
+
+sectionSelect.innerHTML += `
+<option value="${sectionLetter}">
+${sectionLetter}
+</option>
+`;
+
+}
+
+}
+
+});
+
+}
+
+
+/* ADD STAFF */
+
+function addStaff(){
+
+const name=document.getElementById("staffName").value.trim();
+
+const dept=document.getElementById("staffDept").value;
+
+const section=document.getElementById("staffSection").value;
+
+const subject=document.getElementById("staffSubject").value;
+
+const maxLoad=Number(document.getElementById("maxLoad").value);
+
+if(!name||!dept||!section||!subject){
+
+showToast("Please fill all details");
+
+return;
+
+}
+
+let staffList=JSON.parse(localStorage.getItem("staff"))||[];
+
+staffList.push({
+name,
+dept,
+section,
+subject,
+maxLoad
+});
+
+localStorage.setItem("staff",JSON.stringify(staffList));
+
+renderStaff();
+
+showToast("Staff Added Successfully");
+
+document.getElementById("staffName").value="";
+document.getElementById("maxLoad").value=0;
+
+}
+
+
+/* RENDER STAFF TABLE */
+
+function renderStaff(){
+
+const staffList=JSON.parse(localStorage.getItem("staff"))||[];
+
+const table=document.getElementById("staffTable");
+
+table.innerHTML="";
+
+staffList.forEach((staff,index)=>{
+
+table.innerHTML+=`
+
+<tr>
+
+<td>${staff.name}</td>
+
+<td>${staff.subject}</td>
+
+<td>${staff.dept}</td>
+
+<td>${staff.section}</td>
+
+<td>${staff.maxLoad}</td>
+
+<td>
+
+<button class="delete-icon-btn" onclick="deleteStaff(${index})">
+
+Delete
+
+</button>
+
+</td>
+
+</tr>
+
+`;
+
+});
+
+}
+
+
+/* DELETE STAFF */
+
+function deleteStaff(index){
+
+let staffList=JSON.parse(localStorage.getItem("staff"))||[];
+
+staffList.splice(index,1);
+
+localStorage.setItem("staff",JSON.stringify(staffList));
+
+renderStaff();
+
+showToast("Staff Deleted Successfully");
+
+}
+
+
+/* INITIAL LOAD */
+
+loadDepartments();
+loadSubjects();
+renderStaff();
+/* CHECK PRO STATUS */
+
+if(localStorage.getItem("isProUser") === null){
+localStorage.setItem("isProUser","false");
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Generate Timetable</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+body{
+display:none;
+}
+</style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
+  authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
+  projectId: "timetablemanagementsyste-45fd9",
+  storageBucket: "timetablemanagementsyste-45fd9.firebasestorage.app",
+  messagingSenderId: "905343636728",
+  appId: "1:905343636728:web:91124de4d8a8160af5d70d"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+firebase.auth().onAuthStateChanged(function(user){
+
+if(user){
+document.body.style.display = "block";
+}
+else{
+window.location.replace("index.html");
+}
+
+});
+
+</script>
+<style>
+#userEmail{
+word-break: break-all;
+}
+</style>
+</head>
+
+<body>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+<div class="sidebar-header">
+<h1>VELS</h1>
+<p>Timetable Management System</p>
+</div>
+
+<ul>
+<li><a href="dashboard.html">Dashboard</a></li>
+<li><a href="department.html">Department Setup</a></li>
+<li><a href="subject.html">Subject Management</a></li>
+<li><a href="staff.html">Staff Management</a></li>
+<li><a href="section.html">Section Management</a></li>
+<li><a href="generate.html">Generate Timetable</a></li>
+<li><a href="view.html">View Timetable</a></li>
+<li><a href="guidelines.html">System Guidelines</a></li>
+</ul>
+
+<div class="logout-section">
+<div class="signed-in">
+<small>Signed in as</small>
+<p id="userEmail"></p>
+</div>
+<div class="logout-link" onclick="logout()">⬅ Logout</div>
+</div>
+
+</div>
+
+
+<!-- CONTENT -->
+<div class="content-area">
+
+<div class="top-navbar">
+VELS Faculty Scheduling System
+</div>
+
+<div class="dashboard-header">
+<h1>Generate Timetable</h1>
+<p>Automatically generate conflict-free timetables</p>
+</div>
+
+<div class="form-card">
+
+<h3>Select Department</h3>
+
+<select id="departmentSelect" style="width:100%; padding:10px; border-radius:8px;">
+<option value="">Select Department</option>
+</select>
+
+<div id="summaryBox" style="margin-top:20px;"></div>
+
+<button class="add-btn" style="margin-top:20px;" onclick="generateTimetable()">
+Generate Timetable
+</button>
+
+<div id="successMsg" style="margin-top:20px;color:green;font-weight:600;"></div>
+
+</div>
+
+</div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+
+/* PAGE LOAD */
+
+document.addEventListener("DOMContentLoaded", function(){
+
+firebase.auth().onAuthStateChanged(function(user){
+
+if(user){
+
+if(user.email === "gayathridevi182005@gmail.com"){
+document.getElementById("userEmail").innerText = "Admin";
+}
+else{
+document.getElementById("userEmail").innerText = user.email;
+}
+
+}
+
+});
+
+loadDepartments();
+
+document.getElementById("departmentSelect")
+.addEventListener("change", showDepartmentDetails);
+
+});
+
+loadDepartments();
+
+/* dropdown change event */
+document.getElementById("departmentSelect")
+.addEventListener("change", showDepartmentDetails);
+
+
+
+/* LOAD DEPARTMENTS */
+
+function loadDepartments(){
+
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+const select = document.getElementById("departmentSelect");
+
+/* reset dropdown */
+select.innerHTML = `<option value="">Select Department</option>`;
+
+departments.forEach(dep => {
+
+const key = dep.name + "_sem_" + dep.semester;
+
+const option = document.createElement("option");
+
+option.value = key;
+option.textContent = dep.name + " — Sem " + dep.semester;
+
+select.appendChild(option);
+
+});
+
+}
+
+
+/* SHOW DEPARTMENT DETAILS */
+
+function showDepartmentDetails(){
+
+const selected = document.getElementById("departmentSelect").value;
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+const box = document.getElementById("summaryBox");
+
+if(!selected){
+box.innerHTML = "";
+return;
+}
+
+const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
+
+if(!dep) return;
+
+box.innerHTML = `
+<div style="background:#f7f7f7;padding:15px;border-radius:8px;line-height:1.6;">
+<b>Department:</b> ${dep.name} — Semester ${dep.semester}<br>
+<b>Working Days:</b> ${dep.days}<br>
+<b>Periods per Day:</b> ${dep.periods}<br>
+<b>Sections:</b> ${dep.sections}<br>
+<b>Start Time:</b> ${dep.startTime || "Default"}<br>
+<b>Minutes per Period:</b> ${dep.periodMinutes || "Default"}<br>
+<b>Lunch After Period:</b> ${dep.lunchAfter || "Default"}<br>
+<b>Lunch Duration:</b> ${dep.lunchDuration || "Default"} minutes<br>
+<b>Snack After Period:</b> ${dep.snackAfter || "None"}<br>
+<b>Snack Duration:</b> ${dep.snackDuration || "None"} minutes
+</div>
+`;
+
+}
+
+
+/* GENERATE TIMETABLE */
+
+function generateTimetable(){
+const isPro = localStorage.getItem("isProUser") === "true";
+
+let generated = localStorage.getItem("timetableGenerated");
+
+if(!isPro && generated === "true"){
+showToast("Free plan allows only 1 timetable. Upgrade to Pro.");
+return;
+}
+
+localStorage.setItem("timetableGenerated","true");
+const selected = document.getElementById("departmentSelect").value;
+
+if(!selected){
+showToast("Please select department");
+return;
+}
+
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+
+const dep = departments.find(d => (d.name+"_sem_"+d.semester) === selected);
+
+if(!dep) return;
+
+
+/* CHECK SECTIONS */
+
+const sections = JSON.parse(localStorage.getItem("sections_"+selected)) || [];
+
+if(sections.length === 0){
+showToast("Please generate sections first from Section Management");
+return;
+}
+
+
+/* REMOVE OLD TIMETABLE */
+
+localStorage.removeItem("timetable_"+selected);
+
+
+/* FILTER SUBJECTS */
+
+const depSubjects = subjects.filter(s =>
+s.dept &&
+s.sem &&
+s.dept.trim().toLowerCase() === dep.name.trim().toLowerCase() &&
+String(s.sem).trim() === String(dep.semester).trim()
+);
+
+
+const days = Number(dep.days);
+const periods = Number(dep.periods);
+
+let timetableData = {};
+
+
+/* CREATE GRID FOR EACH SECTION */
+
+sections.forEach(sectionName => {
+
+let grid = [];
+
+/* CREATE EMPTY GRID */
+
+for(let d=0; d<days; d++){
+grid[d] = new Array(periods).fill("-");
+}
+
+/* BUILD SUBJECT POOL */
+
+let subjectPool = [];
+
+depSubjects.forEach(sub => {
+for(let i=0;i<sub.credits;i++){
+subjectPool.push(sub.name);
+}
+});
+
+/* RANDOMIZE SUBJECTS */
+
+subjectPool.sort(()=>Math.random()-0.5);
+
+let index = 0;
+
+/* FILL GRID */
+
+/* FILL GRID WITH CLASH CHECK */
+
+for(let d=0; d<days; d++){
+for(let p=0; p<periods; p++){
+
+let placed = false;
+
+for(let i=0;i<subjectPool.length;i++){
+
+let subject = subjectPool[i];
+
+/* CHECK OTHER SECTIONS */
+
+let clash = false;
+
+for(let sec in timetableData){
+
+if(timetableData[sec][d][p] === subject){
+clash = true;
+break;
+}
+
+}
+
+if(!clash){
+
+grid[d][p] = subject;
+
+/* REMOVE SUBJECT FROM POOL */
+subjectPool.splice(i,1);
+
+placed = true;
+
+break;
+
+}
+
+}
+
+/* IF ALL SUBJECTS CLASH, JUST PLACE ONE */
+
+if(!placed && subjectPool.length>0){
+grid[d][p] = subjectPool.shift();
+}
+
+}
+}
+
+timetableData[sectionName] = grid;
+
+});
+
+
+/* SAVE TIMETABLE */
+
+localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
+
+
+/* SUCCESS MESSAGE */
+
+document.getElementById("successMsg").innerText =
+"✔ Timetable generated successfully";
+
+showToast("Timetable Generated Successfully");
+
+}
+
+
+/* TOAST */
+
+function showToast(message){
+
+const toast = document.getElementById("toast");
+
+toast.innerText = message;
+
+toast.classList.add("show");
+
+setTimeout(()=>{
+toast.classList.remove("show");
+},3000);
+
+}
+
+
+/* LOGOUT */
+
+function logout(){
+
+firebase.auth().signOut().then(()=>{
+window.location.replace("index.html");
+});
+
+}
+/* CHECK PRO STATUS */
+
+if(localStorage.getItem("isProUser") === null){
+localStorage.setItem("isProUser","false");
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Timetable Management System</title>
+<link rel="stylesheet" href="style.css">
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+
+/* TOAST MESSAGE */
+
+.toast{
+position:fixed;
+bottom:20px;
+right:20px;
+background:#333;
+color:white;
+padding:12px 18px;
+border-radius:6px;
+font-size:14px;
+opacity:0;
+transition:0.4s;
+z-index:999;
+}
+
+.toast.show{
+opacity:1;
+}
+
+.toast.success{
+background:#22c55e;
+}
+
+.toast.error{
+background:#ef4444;
+}
+
+</style>
+</head>
+
+<body style="background:#f5f7fb; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;">
+
+<div style="text-align:center;">
+
+<h2 style="margin-bottom:5px;">Timetable Management System</h2>
+
+<p style="color:gray; font-size:14px; margin-bottom:25px;">
+Timetable Creation
+</p>
+
+<div class="form-card" style="width:350px; padding:25px;">
+
+<h3 style="margin-bottom:20px;">Sign in to your account</h3>
+
+<form onsubmit="login(event)">
+
+<div style="text-align:left; margin-bottom:10px;">
+<label>Email</label>
+
+<input type="email"
+id="email"
+required
+style="width:100%; padding:10px; margin-top:5px; border-radius:8px; border:1px solid #ccc;">
+</div>
+
+<div style="text-align:left; margin-bottom:5px;">
+<label>Password</label>
+
+<input type="password"
+id="password"
+required
+style="width:100%; padding:10px; margin-top:5px; border-radius:8px; border:1px solid #ccc;">
+</div>
+
+<p style="text-align:right; font-size:13px; margin-bottom:15px;">
+<a href="#" onclick="forgotPassword()" style="color:#3b82f6;">Forgot Password?</a>
+</p>
+
+<button type="submit"
+style="width:100%; padding:10px; border:none; border-radius:8px; background:#3b82f6; color:white; font-weight:600;">
+Sign in
+</button>
+
+</form>
+
+<!-- CREATE ACCOUNT BUTTON -->
+
+<button onclick="createAccount()"
+style="width:100%; padding:10px; margin-top:10px; border:none; border-radius:8px; background:#10b981; color:white; font-weight:600;">
+Create Account
+</button>
+
+</div>
+
+</div>
+
+<!-- TOAST MESSAGE -->
+<div id="toast" class="toast"></div>
+
+<script>
+
+/* FIREBASE CONFIG */
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
+  authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
+  projectId: "timetablemanagementsyste-45fd9",
+  storageBucket: "timetablemanagementsyste-45fd9.firebasestorage.app",
+  messagingSenderId: "905343636728",
+  appId: "1:905343636728:web:91124de4d8a8160af5d70d"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* AUTO LOGIN */
+
+auth.onAuthStateChanged(function(user){
+
+if(user){
+console.log("User already logged in");
+}
+
+});
+
+/* TOAST FUNCTION */
+
+function showToast(message,type){
+
+const toast=document.getElementById("toast");
+
+toast.innerText=message;
+
+toast.className="toast show "+type;
+
+setTimeout(()=>{
+toast.className="toast";
+},3000);
+
+}
+
+
+/* LOGIN FUNCTION */
+
+function login(event){
+
+event.preventDefault();
+
+const email = document.getElementById("email").value;
+const password = document.getElementById("password").value;
+
+auth.signInWithEmailAndPassword(email,password)
+
+.then((userCredential)=>{
+
+showToast("Login successful","success");
+
+setTimeout(()=>{
+window.location.href="dashboard.html";
+},1000);
+
+})
+
+.catch((error)=>{
+
+showToast("Email or password is incorrect","error");
+
+});
+
+}
+
+
+/* CREATE ACCOUNT */
+
+function createAccount(){
+
+const email = document.getElementById("email").value;
+const password = document.getElementById("password").value;
+
+if(email==="" || password===""){
+showToast("Enter email and password","error");
+return;
+}
+
+auth.createUserWithEmailAndPassword(email,password)
+
+.then((userCredential)=>{
+
+showToast("Account created successfully","success");
+
+setTimeout(()=>{
+window.location.href="dashboard.html";
+},1500);
+
+})
+.catch((error)=>{
+
+showToast("Email or password is incorrect","error");
+
+});
+
+}
+
+
+/* FORGOT PASSWORD */
+
+function forgotPassword(){
+
+const email = document.getElementById("email").value;
+
+if(email===""){
+showToast("Enter your email first","error");
+return;
+}
+
+auth.sendPasswordResetEmail(email)
+.then(()=>{
+showToast("Reset email sent. Check Inbox or Spam folder.","success");
+})
+.catch((error)=>{
+showToast(error.message,"error");
+});
+
+}
+
+
+/* PRO STATUS */
+
+if(localStorage.getItem("isProUser")===null){
+localStorage.setItem("isProUser","false");
+}
+
+</script>
+
+</body>
+</html>

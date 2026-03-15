@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Subject Management</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body{
+display:none;
+}
+</style>
+<!-- FIREBASE AUTH PROTECTION -->
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
+  authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
+  projectId: "timetablemanagementsyste-45fd9",
+  storageBucket: "timetablemanagementsyste-45fd9.firebasestorage.app",
+  messagingSenderId: "905343636728",
+  appId: "1:905343636728:web:91124de4d8a8160af5d70d"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+firebase.auth().onAuthStateChanged(function(user){
+
+if(user){
+document.body.style.display = "block";
+}
+else{
+window.location.replace("index.html");
+}
+
+});
+</script>
+
+</head>
+
+<body>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+<div class="sidebar-header">
+<h1>VELS</h1>
+<p>Timetable Management System</p>
+</div>
+
+<ul>
+<li><a href="dashboard.html">Dashboard</a></li>
+<li><a href="department.html">Department Setup</a></li>
+<li><a href="subject.html">Subject Management</a></li>
+<li><a href="staff.html">Staff Management</a></li>
+<li><a href="section.html">Section Management</a></li>
+<li><a href="generate.html">Generate Timetable</a></li>
+<li><a href="view.html">View Timetable</a></li>
+<li><a href="guidelines.html">System Guidelines</a></li>
+</ul>
+
+<div class="logout-section">
+
+<div class="signed-in">
+<small>Signed in as</small>
+<p id="userEmail"></p>
+</div>
+
+<div class="logout-link" onclick="logout()">⬅ Logout</div>
+
+</div>
+
+</div>
+
+
+<!-- RIGHT CONTENT -->
+<div class="content-area">
+
+<div class="top-navbar">
+
+<span class="system-title">
+VELS Faculty Scheduling System
+</span>
+
+
+</div>
+
+<div class="dashboard-header">
+<h1>Subject Management</h1>
+<p>Add and manage subjects. 1 Credit = 1 Period per Week</p>
+</div>
+
+
+<!-- FORM -->
+<div class="form-card">
+
+<h3>Add New Subject</h3>
+
+<div class="form-grid">
+
+<div>
+<label>Subject Name</label>
+<input type="text" id="subjectName">
+</div>
+
+<div>
+<label>Subject Code</label>
+<input type="text" id="subjectCode">
+</div>
+
+<div>
+<label>Credits (Periods/Week)</label>
+<input type="number" id="credits" min="1">
+</div>
+
+<div>
+<label>Type</label>
+<select id="subjectType">
+<option value="">Select Type</option>
+<option>Theory</option>
+<option>Lab</option>
+</select>
+</div>
+
+<div>
+<label>Department</label>
+<select id="subjectDept">
+<option value="">Select Department</option>
+</select>
+</div>
+
+<div>
+<label>Semester</label>
+<select id="subjectSem">
+<option value="">Select Semester</option>
+<option>1</option>
+<option>2</option>
+<option>3</option>
+<option>4</option>
+<option>5</option>
+<option>6</option>
+<option>7</option>
+<option>8</option>
+</select>
+</div>
+
+<div class="add-btn-box">
+<button onclick="addSubject()">+ Add Subject</button>
+</div>
+
+</div>
+
+</div>
+
+
+<!-- TABLE -->
+<div class="table-card">
+
+<table>
+
+<thead>
+<tr>
+<th>Name</th>
+<th>Code</th>
+<th>Credits</th>
+<th>Type</th>
+<th>Department</th>
+<th>Sem</th>
+<th>Actions</th>
+</tr>
+</thead>
+
+<tbody id="subjectTable"></tbody>
+
+</table>
+
+</div>
+
+</div>
+</div>
+
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+
+<script>
+
+/* SHOW LOGGED USER EMAIL */
+
+firebase.auth().onAuthStateChanged(function(user){
+
+if(user){
+
+document.body.style.display = "block";
+
+const emailElement = document.getElementById("userEmail");
+
+if(emailElement){
+emailElement.innerText = user.email;
+}
+
+}
+else{
+window.location.replace("index.html");
+}
+
+});
+
+
+/* LOGOUT */
+
+function logout(){
+
+if (typeof firebase !== "undefined") {
+    firebase.auth().signOut().catch(()=>{});
+}
+
+localStorage.removeItem("isLoggedIn");
+localStorage.removeItem("userEmail");
+
+window.location.replace("index.html");
+
+}
+
+
+/* TOAST */
+
+function showToast(message){
+
+const toast = document.getElementById("toast");
+
+toast.innerText = message;
+toast.classList.add("show");
+
+setTimeout(()=>{
+toast.classList.remove("show");
+},3000);
+
+}
+
+
+/* LOAD DEPARTMENTS */
+
+function loadDepartments(){
+
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+const deptSelect = document.getElementById("subjectDept");
+
+if(departments.length === 0){
+showToast("Create Department First");
+return;
+}
+
+departments.forEach(dep=>{
+deptSelect.innerHTML += `<option value="${dep.name}">${dep.name}</option>`;
+});
+
+}
+
+
+/* ADD SUBJECT */
+
+function addSubject(){
+
+const name = document.getElementById("subjectName").value.trim();
+const code = document.getElementById("subjectCode").value.trim();
+const credits = document.getElementById("credits").value;
+const type = document.getElementById("subjectType").value;
+const dept = document.getElementById("subjectDept").value;
+const sem = document.getElementById("subjectSem").value;
+
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+
+if(departments.length === 0){
+showToast("Create Department First");
+return;
+}
+
+if(!name || !code || !credits || !type || !dept || !sem){
+showToast("Please fill all details");
+return;
+}
+
+let subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+
+subjects.push({name,code,credits,type,dept,sem});
+
+localStorage.setItem("subjects",JSON.stringify(subjects));
+
+showToast("Subject Added Successfully");
+
+renderSubjects();
+
+}
+
+
+/* RENDER SUBJECT TABLE */
+
+function renderSubjects(){
+
+const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+const table = document.getElementById("subjectTable");
+
+table.innerHTML = "";
+
+subjects.forEach((sub,index)=>{
+
+table.innerHTML += `
+<tr>
+<td>${sub.name}</td>
+<td>${sub.code}</td>
+<td>${sub.credits}</td>
+<td>${sub.type}</td>
+<td>${sub.dept}</td>
+<td>${sub.sem}</td>
+<td>
+<button class="delete-icon-btn" onclick="deleteSubject(${index})">
+Delete
+</button>
+</td>
+</tr>
+`;
+
+});
+
+}
+
+
+/* DELETE SUBJECT */
+
+function deleteSubject(index){
+
+let subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+
+subjects.splice(index,1);
+
+localStorage.setItem("subjects",JSON.stringify(subjects));
+
+renderSubjects();
+
+}
+
+
+loadDepartments();
+renderSubjects();
+function showUpgradeToast(){
+showToast("Upgrade to Pro to unlock unlimited departments and sections");
+}
+/* CHECK PRO STATUS */
+
+if(localStorage.getItem("isProUser") === null){
+localStorage.setItem("isProUser","false");
+}
+</script>
+
+</body>
+</html>

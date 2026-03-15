@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>VELS Faculty Scheduling System</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body{
+display:none;
+}
+</style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
+  authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
+  projectId: "timetablemanagementsyste-45fd9",
+  storageBucket: "timetablemanagementsyste-45fd9.firebasestorage.app",
+  messagingSenderId: "905343636728",
+  appId: "1:905343636728:web:91124de4d8a8160af5d70d"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+/* AUTH CHECK */
+
+firebase.auth().onAuthStateChanged(function(user){
+
+if(user){
+
+document.body.style.display = "block";
+
+const emailElement = document.getElementById("userEmail");
+
+if(emailElement){
+
+emailElement.innerText = user.email;
+
+}
+
+}
+else{
+window.location.replace("index.html");
+}
+
+});
+
+</script>
+
+</head>
+
+<body>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+<div class="sidebar-header">
+<h1>VELS</h1>
+<p>Timetable Management System</p>
+</div>
+
+<ul>
+<li><a href="dashboard.html">Dashboard</a></li>
+<li><a href="department.html">Department Setup</a></li>
+<li><a href="subject.html">Subject Management</a></li>
+<li><a href="staff.html">Staff Management</a></li>
+<li><a href="section.html">Section Management</a></li>
+<li><a href="generate.html">Generate Timetable</a></li>
+<li><a href="view.html">View Timetable</a></li>
+<li><a href="guidelines.html">System Guidelines</a></li>
+</ul>
+
+<div class="logout-section">
+
+<div class="signed-in">
+<small>Signed in as</small>
+<p id="userEmail"></p>
+</div>
+
+<div class="logout-link" onclick="logout()">
+⬅ Logout
+</div>
+
+</div>
+
+</div>
+
+
+<!-- RIGHT CONTENT -->
+<div class="content-area">
+
+<div class="top-navbar">
+
+<span class="system-title">
+VELS Faculty Scheduling System
+</span>
+
+</div>
+
+<div class="dashboard-header">
+<h1>Dashboard</h1>
+<p>Overview of your timetable management system</p>
+</div>
+
+
+<div class="stats-container">
+
+<div class="stat-card" onclick="goPage('department.html')">
+<div class="stat-left blue">📁</div>
+<div class="stat-right">
+<h2 id="deptCount">0</h2>
+<p>Departments</p>
+</div>
+</div>
+
+<div class="stat-card" onclick="goPage('subject.html')">
+<div class="stat-left purple">📘</div>
+<div class="stat-right">
+<h2 id="subjectCount">0</h2>
+<p>Subjects</p>
+</div>
+</div>
+
+<div class="stat-card" onclick="goPage('staff.html')">
+<div class="stat-left green">👨‍🏫</div>
+<div class="stat-right">
+<h2 id="staffCount">0</h2>
+<p>Staff</p>
+</div>
+</div>
+
+<div class="stat-card" onclick="goPage('view.html')">
+<div class="stat-left red">📅</div>
+<div class="stat-right">
+<h2 id="timetableCount">0</h2>
+<p>Timetables</p>
+</div>
+</div>
+
+</div>
+
+
+<div class="dashboard-extra">
+
+<div class="extra-card">
+<h3>Upgrade to Pro</h3>
+<p>Unlock unlimited departments and advanced timetable features.</p>
+<button class="upgrade-now-btn" onclick="goPage('upgrade.html')">
+Upgrade Now
+</button>
+</div>
+
+<div class="extra-card">
+<h3>Need Help?</h3>
+<p>Read system guidelines to understand how timetable generation works.</p>
+<button class="upgrade-now-btn" onclick="goPage('guidelines.html')">
+Open Help
+</button>
+</div>
+
+</div>
+
+<script>
+function goPage(page){
+window.location.href = page;
+}
+/* Logout */
+
+function logout(){
+
+firebase.auth().signOut().then(()=>{
+window.location.replace("index.html");
+});
+
+}
+/* CHECK PRO STATUS */
+
+if(localStorage.getItem("isProUser") === null){
+localStorage.setItem("isProUser","false");
+}
+
+
+/* Dashboard Counts */
+
+function updateDashboardCounts() {
+
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+const staff = JSON.parse(localStorage.getItem("staff")) || [];
+
+/* COUNT TIMETABLES */
+
+let timetableCount = 0;
+
+for (let key in localStorage) {
+
+if (key.startsWith("timetable_")) {
+
+try {
+
+const data = JSON.parse(localStorage.getItem(key)) || {};
+timetableCount += Object.keys(data).length;
+
+} catch(e) {}
+
+}
+
+}
+
+/* UPDATE DASHBOARD */
+
+document.getElementById("deptCount").innerText = departments.length;
+document.getElementById("subjectCount").innerText = subjects.length;
+document.getElementById("staffCount").innerText = staff.length;
+document.getElementById("timetableCount").innerText = timetableCount;
+
+}
+
+/* RUN DASHBOARD */
+
+updateDashboardCounts();
+
+/* PRO CHECK */
+
+if(localStorage.getItem("isProUser") === null){
+localStorage.setItem("isProUser","false");
+}
+
+function activatePro(){
+localStorage.setItem("isProUser","true");
+}
+
+</script>
+
+</body>
+</html>
