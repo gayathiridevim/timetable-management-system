@@ -56,7 +56,7 @@ window.location.replace("index.html");
 <div class="sidebar">
 
 <div class="sidebar-header">
-<h1>VELS</h1>
+<h1 id="logoText">VELS <span id="proBadge"></span></h1>
 <p>Timetable Management System</p>
 </div>
 
@@ -286,6 +286,22 @@ if(localStorage.getItem("isProUser") === null){
 localStorage.setItem("isProUser","false");
 }
 </script>
+<script>
 
+var isPro = localStorage.getItem("isProUser");
+
+if(isPro === "true"){
+
+var logo = document.getElementById("logoText");
+var badge = document.getElementById("proBadge");
+
+if(logo && badge){
+logo.classList.add("pro-user");
+badge.innerText = "PRO";
+}
+
+}
+
+</script>
 </body>
 </html>
