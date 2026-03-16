@@ -8,7 +8,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 
 const firebaseConfig = {
@@ -33,7 +33,6 @@ window.location.replace("index.html");
 });
 
 </script>
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <style>
 
@@ -170,7 +169,7 @@ function payNow(){
 
 var options = {
 
-key: "rzp_test_SRWShYuAP2KOrA",   /* replace with your Razorpay key */
+key: "rzp_live_SRwehPXBJZ6DT1",   /* replace with your Razorpay key */
 
 amount: 100,
 
@@ -182,7 +181,7 @@ description: "Pro Plan Upgrade",
 
 handler: function (response){
 
-if(response.razorpay_payment_id){
+alert("Payment Successful! Payment ID: " + response.razorpay_payment_id);
 
 console.log("Payment ID:", response.razorpay_payment_id);
 
@@ -198,7 +197,6 @@ var rzp = new Razorpay(options);
 
 rzp.open();
 
-}
 function goDashboard(){
 window.location.href="dashboard.html";
 }
