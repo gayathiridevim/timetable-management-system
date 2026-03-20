@@ -278,17 +278,15 @@ const periods = Number(dep.periods);
 
 let timetableData = {};
 
-/* 🔥 GLOBAL STAFF TRACKER */
-let staffBusy = {};
-
-/* INIT STAFF BUSY */
+/* INIT TABLE */
+sections.forEach(section => {
+timetableData[section] = [];
 for(let d=0; d<days; d++){
-for(let p=0; p<periods; p++){
-staffBusy[`${d}-${p}`] = [];
+timetableData[section][d] = new Array(periods).fill("-");
 }
-}
+});
 
-/* 🔥 PREPARE POOLS FOR ALL SECTIONS */
+/* CREATE POOLS */
 let sectionPools = {};
 
 sections.forEach(section => {
@@ -311,22 +309,13 @@ sectionPools[section].sort(()=>Math.random()-0.5);
 
 });
 
-/* INIT TABLE */
-sections.forEach(section => {
-timetableData[section] = [];
 
-for(let d=0; d<days; d++){
-timetableData[section][d] = new Array(periods).fill("-");
-}
-});
-
-
-/* 🔥 SLOT BASED ALLOCATION (KEY FIX) */
+/* 🔥 SLOT BASED STRICT ALLOCATION */
 for(let d=0; d<days; d++){
 
 for(let p=0; p<periods; p++){
 
-let usedStaff = [];
+let usedStaff = new Set();
 
 sections.forEach(section => {
 
@@ -337,25 +326,19 @@ for(let i=0;i<pool.length;i++){
 
 let sub = pool[i];
 
-/* CHECK PREVIOUS SLOT */
+/* prevent repeat */
 let prev = (p>0) ? timetableData[section][d][p-1] : null;
 let prevDay = (d>0) ? timetableData[section][d-1][p] : null;
 
-/* CONDITIONS */
+/* STRICT CHECK */
 if(
-!usedStaff.includes(sub.staff) &&
-!staffBusy[`${d}-${p}`].includes(sub.staff) &&
+!usedStaff.has(sub.staff) &&
 sub.name !== prev &&
 sub.name !== prevDay
 ){
 
 timetableData[section][d][p] = sub.name;
-
-/* mark busy */
-staffBusy[`${d}-${p}`].push(sub.staff);
-usedStaff.push(sub.staff);
-
-/* remove */
+usedStaff.add(sub.staff);
 pool.splice(i,1);
 
 placed = true;
@@ -364,30 +347,9 @@ break;
 
 }
 
-/* fallback if strict rule fails */
+/* 🚫 NO FORCE = NO CLASH GUARANTEE */
 if(!placed){
-
-for(let i=0;i<pool.length;i++){
-
-let sub = pool[i];
-
-if(
-!usedStaff.includes(sub.staff) &&
-!staffBusy[`${d}-${p}`].includes(sub.staff)
-){
-
-timetableData[section][d][p] = sub.name;
-
-staffBusy[`${d}-${p}`].push(sub.staff);
-usedStaff.push(sub.staff);
-
-pool.splice(i,1);
-
-break;
-}
-
-}
-
+timetableData[section][d][p] = "-";
 }
 
 });
@@ -404,7 +366,6 @@ document.getElementById("successMsg").innerText =
 
 showToast("Timetable Generated Successfully");
 }
-
 
 
 function showToast(message){
