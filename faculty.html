@@ -167,6 +167,7 @@ return;
 }
 
 const staff=JSON.parse(localStorage.getItem("staff"))||[];
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
 
 const subjects=staff
 .filter(s=>s.name===selected)
@@ -184,35 +185,46 @@ for(let section in data){
 
 let grid=data[section];
 
+/* 🔥 GET DEPARTMENT SETTINGS */
+let dept = departments[0] || {};
+
+let startTime = dept.startTime || "09:30";
+let minutes = Number(dept.minutesPerPeriod) || 50;
+let lunchAfter = Number(dept.lunchAfter) || 3;
+let lunchDuration = Number(dept.lunchDuration) || 30;
+
+/* TIME CALCULATION */
+function addMinutes(time, mins){
+  let [h,m]=time.split(":").map(Number);
+  m+=mins;
+  if(m>=60){ h+=Math.floor(m/60); m%=60; }
+  return `${h}:${m.toString().padStart(2,'0')}`;
+}
+
+let current = startTime;
+
 html+=`
 <div class="form-card">
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-
 <h3>${selected}</h3>
 
 <div>
-
 <button onclick="editTimetable('${section}')"
-style="background:#3498db;color:white;border:none;padding:5px 12px;border-radius:6px;">
-Edit
-</button>
+style="background:#3498db;color:white;border:none;padding:5px 12px;border-radius:6px;">Edit</button>
 
 <span id="controls-${section}" style="display:none">
-
 <button onclick="saveEdit('${section}')"
 style="background:#27ae60;color:white;border:none;padding:4px 8px;border-radius:5px;">✔</button>
 
 <button onclick="cancelEdit('${section}')"
 style="background:#e74c3c;color:white;border:none;padding:4px 8px;border-radius:5px;">✖</button>
-
 </span>
 
 <button onclick="downloadPDF('${section}')"
 style="background:#34495e;color:white;border:none;padding:5px 12px;border-radius:6px;">
 Download PDF
 </button>
-
 </div>
 </div>
 
@@ -223,16 +235,35 @@ style="width:100%;border-collapse:collapse;text-align:center">
 <th>Day</th>
 `;
 
+/* 🔥 HEADER WITH TIME + LUNCH */
 let periods=grid[0].length;
 
 for(let p=1;p<=periods;p++){
-html+=`<th>P${p}</th>`;
+
+let next = addMinutes(current, minutes);
+
+html+=`<th>P${p}<br>${current}-${next}</th>`;
+
+current = next;
+
+/* LUNCH */
+if(p === lunchAfter){
+
+let lunchEnd = addMinutes(current, lunchDuration);
+
+html+=`<th rowspan="${grid.length+1}">
+LUNCH<br>${current}-${lunchEnd}
+</th>`;
+
+current = lunchEnd;
+}
 }
 
 html+="</tr>";
 
 const days=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
+/* 🔥 ROW DATA */
 for(let d=0;d<grid.length;d++){
 
 html+="<tr>";
@@ -248,6 +279,10 @@ html+=`<td contenteditable="false">${sub}</td>`;
 html+=`<td class="empty">-</td>`;
 }
 
+/* skip lunch cell (already rowspan) */
+if(p+1 === lunchAfter){
+/* do nothing */
+}
 }
 
 html+="</tr>";
@@ -256,9 +291,7 @@ html+="</tr>";
 html+="</table></div>";
 
 }
-
 }
-
 }
 
 container.innerHTML=html;
