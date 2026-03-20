@@ -232,6 +232,7 @@ box.innerHTML = `
 
 
 function generateTimetable() {
+
   const isPro = localStorage.getItem("isProUser") === "true";
   let generated = localStorage.getItem("timetableGenerated");
 
@@ -275,19 +276,29 @@ function generateTimetable() {
   const periods = Number(dep.periods);
 
   let timetableData = {};
-  let staffBusy = {};
+  let staffBusy = {}; // KEY = day-period, VALUE = array of busy staff
+
+  // INIT staffBusy
+  for (let d = 0; d < days; d++) {
+    for (let p = 0; p < periods; p++) {
+      staffBusy[`${d}-${p}`] = [];
+    }
+  }
 
   sections.forEach(sectionName => {
-    let grid = [];
 
+    let grid = [];
     for (let d = 0; d < days; d++) {
       grid[d] = new Array(periods).fill("-");
     }
 
+    // 🔥 EXPAND SUBJECTS BASED ON CREDITS
     let subjectPool = [];
 
     depSubjects.forEach(sub => {
-      for (let i = 0; i < sub.credits; i++) {
+      let credits = Number(sub.credits) || 1;
+
+      for (let i = 0; i < credits; i++) {
         subjectPool.push({
           name: sub.name,
           staff: sub.staff || "unknown"
@@ -295,36 +306,62 @@ function generateTimetable() {
       }
     });
 
-    subjectPool.sort(() => Math.random() - 0.5);
+    // 🔥 MAIN SAFE ALLOCATION
+    subjectPool.forEach(subjectObj => {
 
-    for (let d = 0; d < days; d++) {
-      for (let p = 0; p < periods; p++) {
-        let placed = false;
+      let placed = false;
 
-        for (let i = 0; i < subjectPool.length; i++) {
-          let subjectObj = subjectPool[i];
-          let subject = subjectObj.name;
-          let teacher = subjectObj.staff;
+      // TRY ALL SLOTS (NOT RANDOM)
+      for (let d = 0; d < days; d++) {
+        for (let p = 0; p < periods; p++) {
+
           let timeKey = `${d}-${p}`;
 
-          if (!staffBusy[timeKey]) staffBusy[timeKey] = [];
+          if (
+            grid[d][p] === "-" && // class free
+            !staffBusy[timeKey].includes(subjectObj.staff) // staff free
+          ) {
 
-          if (!staffBusy[timeKey].includes(teacher)) {
-            grid[d][p] = subject;
-            staffBusy[timeKey].push(teacher);
-            subjectPool.splice(i, 1);
+            grid[d][p] = subjectObj.name;
+            staffBusy[timeKey].push(subjectObj.staff);
+
             placed = true;
             break;
           }
         }
+        if (placed) break;
+      }
 
-        if (!placed) {
-          grid[d][p] = "-";
+      // 🔥 IF STILL NOT PLACED → FORCE SAFE RANDOM (LAST RESORT)
+      if (!placed) {
+
+        let attempts = 0;
+
+        while (attempts < 1000) {
+
+          let d = Math.floor(Math.random() * days);
+          let p = Math.floor(Math.random() * periods);
+          let timeKey = `${d}-${p}`;
+
+          if (
+            grid[d][p] === "-" &&
+            !staffBusy[timeKey].includes(subjectObj.staff)
+          ) {
+
+            grid[d][p] = subjectObj.name;
+            staffBusy[timeKey].push(subjectObj.staff);
+
+            break;
+          }
+
+          attempts++;
         }
       }
-    }
+
+    });
 
     timetableData[sectionName] = grid;
+
   });
 
   localStorage.setItem("timetable_" + selected, JSON.stringify(timetableData));
