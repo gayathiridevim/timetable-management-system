@@ -8,7 +8,7 @@ body{
 display:none;
 }
 </style>
-<!-- FIREBASE AUTH PROTECTION -->
+
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -41,7 +41,7 @@ window.location.replace("index.html");
 
 <style>
 
-/* makes long email wrap properly */
+
 #userEmail{
 word-break: break-all;
 }
@@ -54,7 +54,7 @@ word-break: break-all;
 
 <div class="layout">
 
-<!-- SIDEBAR -->
+
 <div class="sidebar">
 
 <div class="sidebar-header">
@@ -71,6 +71,7 @@ word-break: break-all;
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
 <li><a href="guidelines.html">System Guidelines</a></li>
+<li><a href="faculty.html">Staff Timetable</a></li>
 </ul>
 
 <div class="logout-section">
@@ -182,13 +183,23 @@ VELS Faculty Scheduling System
 
 <script>
 
-/* SHOW LOGGED USER EMAIL */
+
 
 firebase.auth().onAuthStateChanged(function(user){
 
 if(user){
 
 document.body.style.display = "block";
+
+const proUsers = [
+"staff@college.com",
+"hod@college.com",
+"gayathiridevi182005@gmail.com"
+];
+
+if(proUsers.includes(user.email)){
+localStorage.setItem("isProUser","true");
+}
 
 const emailElement = document.getElementById("userEmail");
 
@@ -203,7 +214,7 @@ window.location.replace("index.html");
 
 });
 
-/* LOGOUT */
+
 function logout(){
 
 firebase.auth().signOut().then(()=>{
@@ -211,13 +222,12 @@ window.location.replace("index.html");
 });
 
 }
-/* CHECK PRO STATUS */
+
 
 if(localStorage.getItem("isProUser") === null){
 localStorage.setItem("isProUser","false");
 }
 
-/* TOAST */
 
 function showToast(message){
 
@@ -232,7 +242,7 @@ setTimeout(()=>toast.classList.remove("show"),3000);
 }
 
 
-/* LOAD DEPARTMENTS */
+
 
 function loadDepartments(){
 
@@ -249,7 +259,7 @@ deptSelect.innerHTML+=`<option value="${dep.name}">${dep.name}</option>`;
 }
 
 
-/* LOAD SUBJECTS */
+
 
 function loadSubjects(){
 
@@ -266,7 +276,7 @@ subjectSelect.innerHTML+=`<option value="${sub.name}">${sub.name}</option>`;
 }
 
 
-/* LOAD SECTIONS */
+
 
 function loadSections(){
 
@@ -303,7 +313,7 @@ ${sectionLetter}
 }
 
 
-/* ADD STAFF */
+
 
 function addStaff(){
 
@@ -347,7 +357,6 @@ document.getElementById("maxLoad").value=0;
 }
 
 
-/* RENDER STAFF TABLE */
 
 function renderStaff(){
 
@@ -392,7 +401,7 @@ Delete
 }
 
 
-/* DELETE STAFF */
+
 
 function deleteStaff(index){
 
@@ -409,12 +418,12 @@ showToast("Staff Deleted Successfully");
 }
 
 
-/* INITIAL LOAD */
+
 
 loadDepartments();
 loadSubjects();
 renderStaff();
-/* CHECK PRO STATUS */
+
 
 if(localStorage.getItem("isProUser") === null){
 localStorage.setItem("isProUser","false");
