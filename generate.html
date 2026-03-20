@@ -278,6 +278,9 @@ const periods = Number(dep.periods);
 
 let timetableData = {};
 
+/* 🔥 GLOBAL STAFF TRACK (FIX) */
+let staffBusy = JSON.parse(localStorage.getItem("globalStaffBusy")) || {};
+
 /* INIT TABLE */
 sections.forEach(section => {
 timetableData[section] = [];
@@ -317,6 +320,12 @@ for(let p=0; p<periods; p++){
 
 let usedStaff = new Set();
 
+/* INIT GLOBAL SLOT IF NOT EXISTS */
+let timeKey = `${d}-${p}`;
+if(!staffBusy[timeKey]){
+staffBusy[timeKey] = [];
+}
+
 sections.forEach(section => {
 
 let pool = sectionPools[section];
@@ -330,15 +339,19 @@ let sub = pool[i];
 let prev = (p>0) ? timetableData[section][d][p-1] : null;
 let prevDay = (d>0) ? timetableData[section][d-1][p] : null;
 
-/* STRICT CHECK */
+/* STRICT CHECK WITH GLOBAL STAFF */
 if(
 !usedStaff.has(sub.staff) &&
+!staffBusy[timeKey].includes(sub.staff) &&
 sub.name !== prev &&
 sub.name !== prevDay
 ){
 
 timetableData[section][d][p] = sub.name;
+
 usedStaff.add(sub.staff);
+staffBusy[timeKey].push(sub.staff);
+
 pool.splice(i,1);
 
 placed = true;
@@ -347,7 +360,7 @@ break;
 
 }
 
-/* 🚫 NO FORCE = NO CLASH GUARANTEE */
+/* 🚫 NO FORCE */
 if(!placed){
 timetableData[section][d][p] = "-";
 }
@@ -358,7 +371,10 @@ timetableData[section][d][p] = "-";
 
 }
 
-/* SAVE */
+/* 🔥 SAVE GLOBAL STAFF (FIX) */
+localStorage.setItem("globalStaffBusy", JSON.stringify(staffBusy));
+
+/* SAVE TIMETABLE */
 localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
 
 document.getElementById("successMsg").innerText =
