@@ -8,7 +8,7 @@ body{
 display:none;
 }
 </style>
-<!-- FIREBASE AUTH PROTECTION -->
+
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -75,7 +75,7 @@ cursor:not-allowed;
 
 <div class="layout">
 
-<!-- SIDEBAR -->
+
 <div class="sidebar">
 
 <div class="sidebar-header">
@@ -92,6 +92,7 @@ cursor:not-allowed;
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
 <li><a href="guidelines.html">System Guidelines</a></li>
+<li><a href="faculty.html">Staff Timetable</a></li>
 </ul>
 
 <div class="logout-section">
@@ -108,7 +109,7 @@ cursor:not-allowed;
 </div>
 
 
-<!-- RIGHT CONTENT -->
+
 <div class="content-area">
 
 <div class="top-navbar">
@@ -135,7 +136,7 @@ cursor:not-allowed;
 
 <script>
 
-/* SHOW LOGGED USER */
+
 
 firebase.auth().onAuthStateChanged(function(user){
 
@@ -143,9 +144,19 @@ if(user){
 
 document.body.style.display = "block";
 
+const proUsers = [
+"staff@college.com",
+"hod@college.com",
+"gayathiridevi182005@gmail.com"
+];
+
+if(proUsers.includes(user.email)){
+localStorage.setItem("isProUser","true");
+}
+
 const emailElement = document.getElementById("userEmail");
+
 if(emailElement){
-emailElement.style.visibility = "visible";
 emailElement.innerText = user.email;
 }
 
@@ -157,7 +168,6 @@ window.location.replace("index.html");
 });
 
 
-/* LOGOUT */
 function logout(){
 
 firebase.auth().signOut().then(()=>{
@@ -165,13 +175,13 @@ window.location.replace("index.html");
 });
 
 }
-/* CHECK PRO STATUS */
+
 
 if(localStorage.getItem("isProUser") === null){
 localStorage.setItem("isProUser","false");
 }
 
-/* TOAST */
+
 
 function showToast(message){
 const toast=document.getElementById("toast");
@@ -181,7 +191,7 @@ setTimeout(()=>toast.classList.remove("show"),3000);
 }
 
 
-/* LOAD SECTION CARDS */
+
 
 function loadSectionCards(){
 
@@ -206,13 +216,13 @@ departments.forEach(dep=>{
 
 const key = dep.name+"_sem_"+dep.semester;
 
-/* FIXED STORAGE KEY */
+
 const savedSections = JSON.parse(localStorage.getItem("sections_"+key));
 
 let sectionHTML="";
 let buttonHTML="";
 
-/* SHOW SECTIONS */
+
 
 if(savedSections && savedSections.length>0){
 
@@ -267,12 +277,11 @@ ${sectionHTML}
 }
 
 
-/* GENERATE SECTIONS */
+
 
 function generateSections(name,semester,count){
 function generateSections(name,semester,count){
 
-/* FREE PLAN SECTION LIMIT */
 
 const isPro = localStorage.getItem("isProUser") === "true";
 
@@ -290,7 +299,7 @@ sections.push(`${name}-${letters[i]}`);
 
 const key=name+"_sem_"+semester;
 
-/* FIXED STORAGE KEY */
+
 
 localStorage.setItem("sections_"+key,JSON.stringify(sections));
 
@@ -308,7 +317,7 @@ sections.push(`${name}-${letters[i]}`);
 
 const key=name+"_sem_"+semester;
 
-/* FIXED STORAGE KEY */
+
 
 localStorage.setItem("sections_"+key,JSON.stringify(sections));
 
@@ -319,10 +328,10 @@ loadSectionCards();
 }
 
 
-/* INITIAL LOAD */
+
 
 loadSectionCards();
-/* CHECK PRO STATUS */
+
 
 if(localStorage.getItem("isProUser") === null){
 localStorage.setItem("isProUser","false");
