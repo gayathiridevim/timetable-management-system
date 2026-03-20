@@ -263,7 +263,6 @@ showToast("Please generate sections first");
 return;
 }
 
-/* CLEAR OLD */
 localStorage.removeItem("timetable_"+selected);
 
 /* FILTER SUBJECTS */
@@ -282,62 +281,82 @@ let timetableData = {};
 /* 🔥 GLOBAL STAFF TRACKER */
 let staffBusy = {};
 
-/* LOOP SECTIONS */
-sections.forEach(sectionName => {
-
-let grid = [];
-
-/* EMPTY GRID */
+/* INIT STAFF BUSY */
 for(let d=0; d<days; d++){
-grid[d] = new Array(periods).fill("-");
+for(let p=0; p<periods; p++){
+staffBusy[`${d}-${p}`] = [];
+}
 }
 
-/* CREATE SUBJECT POOL */
-let subjectPool = [];
+/* 🔥 PREPARE POOLS FOR ALL SECTIONS */
+let sectionPools = {};
+
+sections.forEach(section => {
+
+sectionPools[section] = [];
 
 depSubjects.forEach(sub => {
-for(let i=0;i<sub.credits;i++){
-subjectPool.push({
+let credits = Number(sub.credits) || 1;
+
+for(let i=0;i<credits;i++){
+sectionPools[section].push({
 name: sub.name,
 staff: sub.staff || "unknown"
 });
 }
 });
 
-/* SHUFFLE */
-subjectPool.sort(()=>Math.random()-0.5);
+/* shuffle */
+sectionPools[section].sort(()=>Math.random()-0.5);
 
-/* FILL GRID */
+});
+
+/* INIT TABLE */
+sections.forEach(section => {
+timetableData[section] = [];
+
 for(let d=0; d<days; d++){
+timetableData[section][d] = new Array(periods).fill("-");
+}
+});
+
+
+/* 🔥 SLOT BASED ALLOCATION (KEY FIX) */
+for(let d=0; d<days; d++){
+
 for(let p=0; p<periods; p++){
 
+let usedStaff = [];
+
+sections.forEach(section => {
+
+let pool = sectionPools[section];
 let placed = false;
 
-/* TRY ALL SUBJECTS */
-for(let i=0;i<subjectPool.length;i++){
+for(let i=0;i<pool.length;i++){
 
-let subjectObj = subjectPool[i];
-let subject = subjectObj.name;
-let teacher = subjectObj.staff;
+let sub = pool[i];
 
-let timeKey = `${d}-${p}`;
+/* CHECK PREVIOUS SLOT */
+let prev = (p>0) ? timetableData[section][d][p-1] : null;
+let prevDay = (d>0) ? timetableData[section][d-1][p] : null;
 
-/* INIT */
-if(!staffBusy[timeKey]) staffBusy[timeKey] = [];
+/* CONDITIONS */
+if(
+!usedStaff.includes(sub.staff) &&
+!staffBusy[`${d}-${p}`].includes(sub.staff) &&
+sub.name !== prev &&
+sub.name !== prevDay
+){
 
-/* CHECK ONLY STAFF CLASH */
-let staffClash = staffBusy[timeKey].includes(teacher);
+timetableData[section][d][p] = sub.name;
 
-if(!staffClash){
+/* mark busy */
+staffBusy[`${d}-${p}`].push(sub.staff);
+usedStaff.push(sub.staff);
 
-/* PLACE */
-grid[d][p] = subject;
-
-/* MARK BUSY */
-staffBusy[timeKey].push(teacher);
-
-/* REMOVE FROM POOL */
-subjectPool.splice(i,1);
+/* remove */
+pool.splice(i,1);
 
 placed = true;
 break;
@@ -345,17 +364,37 @@ break;
 
 }
 
-/* IF NOT POSSIBLE → LEAVE EMPTY (NO FORCE) */
+/* fallback if strict rule fails */
 if(!placed){
-grid[d][p] = "-";
+
+for(let i=0;i<pool.length;i++){
+
+let sub = pool[i];
+
+if(
+!usedStaff.includes(sub.staff) &&
+!staffBusy[`${d}-${p}`].includes(sub.staff)
+){
+
+timetableData[section][d][p] = sub.name;
+
+staffBusy[`${d}-${p}`].push(sub.staff);
+usedStaff.push(sub.staff);
+
+pool.splice(i,1);
+
+break;
 }
 
 }
-}
 
-timetableData[sectionName] = grid;
+}
 
 });
+
+}
+
+}
 
 /* SAVE */
 localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
@@ -365,7 +404,6 @@ document.getElementById("successMsg").innerText =
 
 showToast("Timetable Generated Successfully");
 }
-
 
 
 
