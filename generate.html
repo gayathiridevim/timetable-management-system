@@ -231,140 +231,108 @@ box.innerHTML = `
 
 
 
-function generateTimetable(){
+function generateTimetable() {
+  const isPro = localStorage.getItem("isProUser") === "true";
+  let generated = localStorage.getItem("timetableGenerated");
 
-const isPro = localStorage.getItem("isProUser") === "true";
-let generated = localStorage.getItem("timetableGenerated");
+  if (!isPro && generated === "true") {
+    showToast("Free plan allows only 1 timetable. Upgrade to Pro.");
+    return;
+  }
 
-if(!isPro && generated === "true"){
-showToast("Free plan allows only 1 timetable. Upgrade to Pro.");
-return;
+  localStorage.setItem("timetableGenerated", "true");
+
+  const selected = document.getElementById("departmentSelect").value;
+
+  if (!selected) {
+    showToast("Please select department");
+    return;
+  }
+
+  const departments = JSON.parse(localStorage.getItem("departments")) || [];
+  const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+
+  const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
+  if (!dep) return;
+
+  const sections = JSON.parse(localStorage.getItem("sections_" + selected)) || [];
+
+  if (sections.length === 0) {
+    showToast("Please generate sections first");
+    return;
+  }
+
+  localStorage.removeItem("timetable_" + selected);
+
+  const depSubjects = subjects.filter(s =>
+    s.dept &&
+    s.sem &&
+    s.dept.trim().toLowerCase() === dep.name.trim().toLowerCase() &&
+    String(s.sem).trim() === String(dep.semester).trim()
+  );
+
+  const days = Number(dep.days);
+  const periods = Number(dep.periods);
+
+  let timetableData = {};
+  let staffBusy = {};
+
+  sections.forEach(sectionName => {
+    let grid = [];
+
+    for (let d = 0; d < days; d++) {
+      grid[d] = new Array(periods).fill("-");
+    }
+
+    let subjectPool = [];
+
+    depSubjects.forEach(sub => {
+      for (let i = 0; i < sub.credits; i++) {
+        subjectPool.push({
+          name: sub.name,
+          staff: sub.staff || "unknown"
+        });
+      }
+    });
+
+    subjectPool.sort(() => Math.random() - 0.5);
+
+    for (let d = 0; d < days; d++) {
+      for (let p = 0; p < periods; p++) {
+        let placed = false;
+
+        for (let i = 0; i < subjectPool.length; i++) {
+          let subjectObj = subjectPool[i];
+          let subject = subjectObj.name;
+          let teacher = subjectObj.staff;
+          let timeKey = `${d}-${p}`;
+
+          if (!staffBusy[timeKey]) staffBusy[timeKey] = [];
+
+          if (!staffBusy[timeKey].includes(teacher)) {
+            grid[d][p] = subject;
+            staffBusy[timeKey].push(teacher);
+            subjectPool.splice(i, 1);
+            placed = true;
+            break;
+          }
+        }
+
+        if (!placed) {
+          grid[d][p] = "-";
+        }
+      }
+    }
+
+    timetableData[sectionName] = grid;
+  });
+
+  localStorage.setItem("timetable_" + selected, JSON.stringify(timetableData));
+
+  document.getElementById("successMsg").innerText = "✔ Timetable generated successfully";
+  showToast("Timetable Generated Successfully");
 }
 
-localStorage.setItem("timetableGenerated","true");
-
-const selected = document.getElementById("departmentSelect").value;
-
-if(!selected){
-showToast("Please select department");
-return;
-}
-
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
-const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-
-const dep = departments.find(d => (d.name+"_sem_"+d.semester) === selected);
-if(!dep) return;
-
-const sections = JSON.parse(localStorage.getItem("sections_"+selected)) || [];
-
-if(sections.length === 0){
-showToast("Please generate sections first");
-return;
-}
-
-/* CLEAR OLD */
-localStorage.removeItem("timetable_"+selected);
-
-/* FILTER SUBJECTS */
-const depSubjects = subjects.filter(s =>
-s.dept &&
-s.sem &&
-s.dept.trim().toLowerCase() === dep.name.trim().toLowerCase() &&
-String(s.sem).trim() === String(dep.semester).trim()
-);
-
-const days = Number(dep.days);
-const periods = Number(dep.periods);
-
-let timetableData = {};
-
-/* 🔥 GLOBAL STAFF TRACKER */
-let staffBusy = {};
-
-/* LOOP SECTIONS */
-sections.forEach(sectionName => {
-
-let grid = [];
-
-/* EMPTY GRID */
-for(let d=0; d<days; d++){
-grid[d] = new Array(periods).fill("-");
-}
-
-/* CREATE SUBJECT POOL */
-let subjectPool = [];
-
-depSubjects.forEach(sub => {
-for(let i=0;i<sub.credits;i++){
-subjectPool.push({
-name: sub.name,
-staff: sub.staff || "unknown"
-});
-}
-});
-
-/* SHUFFLE */
-subjectPool.sort(()=>Math.random()-0.5);
-
-/* FILL GRID */
-for(let d=0; d<days; d++){
-for(let p=0; p<periods; p++){
-
-let placed = false;
-
-/* TRY ALL SUBJECTS */
-for(let i=0;i<subjectPool.length;i++){
-
-let subjectObj = subjectPool[i];
-let subject = subjectObj.name;
-let teacher = subjectObj.staff;
-
-let timeKey = `${d}-${p}`;
-
-/* INIT */
-if(!staffBusy[timeKey]) staffBusy[timeKey] = [];
-
-/* CHECK ONLY STAFF CLASH */
-let staffClash = staffBusy[timeKey].includes(teacher);
-
-if(!staffClash){
-
-/* PLACE */
-grid[d][p] = subject;
-
-/* MARK BUSY */
-staffBusy[timeKey].push(teacher);
-
-/* REMOVE FROM POOL */
-subjectPool.splice(i,1);
-
-placed = true;
-break;
-}
-
-}
-
-/* IF NOT POSSIBLE → LEAVE EMPTY (NO FORCE) */
-if(!placed){
-grid[d][p] = "-";
-}
-
-}
-}
-
-timetableData[sectionName] = grid;
-
-});
-
-/* SAVE */
-localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
-
-document.getElementById("successMsg").innerText =
-"✔ Timetable generated successfully";
-
-showToast("Timetable Generated Successfully");
-}
 
 
 
