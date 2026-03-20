@@ -14,7 +14,7 @@ display:none;
 word-break: break-all;
 }
 </style>
-<!-- FIREBASE AUTH PROTECTION -->
+
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -37,7 +37,25 @@ const db = firebase.firestore();
 firebase.auth().onAuthStateChanged(function(user){
 
 if(user){
+
 document.body.style.display = "block";
+
+const proUsers = [
+"staff@college.com",
+"hod@college.com",
+"gayathiridevi182005@gmail.com"
+];
+
+if(proUsers.includes(user.email)){
+localStorage.setItem("isProUser","true");
+}
+
+const emailElement = document.getElementById("userEmail");
+
+if(emailElement){
+emailElement.innerText = user.email;
+}
+
 }
 else{
 window.location.replace("index.html");
@@ -52,7 +70,7 @@ window.location.replace("index.html");
 
 <div class="layout">
 
-<!-- SIDEBAR -->
+
 <div class="sidebar">
 
 <div class="sidebar-header">
@@ -69,6 +87,7 @@ window.location.replace("index.html");
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
 <li><a href="guidelines.html">System Guidelines</a></li>
+<li><a href="faculty.html">Staff Timetable</a></li>
 </ul>
 
 <div class="logout-section">
@@ -165,8 +184,6 @@ the selected section.
 
 </div>
 
-
-<!-- QUERY BOX -->
 <div class="query-box">
 
 <h3>Have a Question?</h3>
@@ -191,7 +208,7 @@ Send Query
 
 <script>
 
-/* SHOW LOGGED-IN EMAIL */
+
 
 firebase.auth().onAuthStateChanged(function(user){
 
@@ -212,7 +229,7 @@ window.location.replace("index.html");
 
 });
 
-/* LOGOUT FUNCTION */
+
 
 function logout(){
 
@@ -221,7 +238,7 @@ window.location.replace("index.html");
 });
 
 }
-/* CHECK PRO STATUS */
+
 
 if(localStorage.getItem("isProUser") === null){
 localStorage.setItem("isProUser","false");
@@ -259,7 +276,6 @@ return;
 
 const cleanEmail = email.toLowerCase();
 
-/* SAVE TO FIREBASE */
 
 db.collection("queries").add({
 email: cleanEmail,
