@@ -26,7 +26,25 @@ firebase.initializeApp(firebaseConfig);
 firebase.auth().onAuthStateChanged(function(user){
 
 if(user){
+
 document.body.style.display = "block";
+
+const proUsers = [
+"staff@college.com",
+"hod@college.com",
+"gayathiridevi182005@gmail.com"
+];
+
+if(proUsers.includes(user.email)){
+localStorage.setItem("isProUser","true");
+}
+
+const emailElement = document.getElementById("userEmail");
+
+if(emailElement){
+emailElement.innerText = user.email;
+}
+
 }
 else{
 window.location.replace("index.html");
@@ -41,7 +59,7 @@ window.location.replace("index.html");
 
 <div class="layout">
 
-    <!-- SIDEBAR -->
+   
     <div class="sidebar">
         <div class="sidebar-header">
             <h1 id="logoText">VELS <span id="proBadge"></span></h1>
@@ -57,6 +75,8 @@ window.location.replace("index.html");
             <li><a href="generate.html">Generate Timetable</a></li>
             <li><a href="view.html">View Timetable</a></li>
             <li><a href="guidelines.html">System Guidelines</a></li>
+            <li><a href="faculty.html">Staff Timetable</a></li>
+
         </ul>
 
         <div class="logout-section">
@@ -68,10 +88,10 @@ window.location.replace("index.html");
         </div>
     </div>
 
-    <!-- RIGHT CONTENT -->
+    
     <div class="content-area">
 
-        <!-- TOP NAVBAR -->
+     
         <div class="top-navbar">
 
 <span class="system-title">
@@ -155,7 +175,7 @@ VELS Faculty Scheduling System
             </div>
         </div>
 
-        <!-- TABLE -->
+      
         <div class="table-card">
             <table>
                 <thead>
@@ -176,7 +196,7 @@ VELS Faculty Scheduling System
     </div>
 </div>
 
-<!-- TOAST -->
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -302,7 +322,7 @@ renderTable();
 
 <script>
 
-// show logged in email from firebase
+
 firebase.auth().onAuthStateChanged(function(user){
 
 if(user){
@@ -324,7 +344,7 @@ window.location.replace("index.html");
 
 
 
-/* CHECK PRO STATUS */
+
 
 if(localStorage.getItem("isProUser") === null){
 localStorage.setItem("isProUser","false");
@@ -336,13 +356,12 @@ function showUpgradeToast(){
 showToast("Upgrade to Pro to unlock unlimited departments and sections");
 }
 
-/* CHECK PRO STATUS */
 
 if(localStorage.getItem("isProUser") === null){
 localStorage.setItem("isProUser","false");
 }
 
-/* SECTION LIMIT FIX (MAX 10 ONLY) */
+
 
 document.addEventListener("DOMContentLoaded", function () {
     const sectionsInput = document.getElementById("sections");
