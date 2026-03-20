@@ -252,6 +252,7 @@ return;
 
 const departments = JSON.parse(localStorage.getItem("departments")) || [];
 const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+const staffList = JSON.parse(localStorage.getItem("staff")) || []; // 🔥 IMPORTANT
 
 const dep = departments.find(d => (d.name+"_sem_"+d.semester) === selected);
 if(!dep) return;
@@ -296,14 +297,23 @@ sections.forEach(section => {
 sectionPools[section] = [];
 
 depSubjects.forEach(sub => {
+
 let credits = Number(sub.credits) || 1;
+
+/* 🔥 MAP STAFF FROM STAFF TABLE */
+let staffObj = staffList.find(s =>
+s.subject.toLowerCase().trim() === sub.name.toLowerCase().trim()
+);
+
+let staffName = staffObj ? staffObj.name : "unknown";
 
 for(let i=0;i<credits;i++){
 sectionPools[section].push({
 name: sub.name,
-staff: sub.staff || "unknown"
+staff: staffName
 });
 }
+
 });
 
 sectionPools[section].sort(()=>Math.random()-0.5);
@@ -339,7 +349,7 @@ if(
 sub.name !== prev
 ){
 
-/* ✅ STORE WITH STAFF NAME (IMPORTANT FIX) */
+/* ✅ STORE WITH STAFF NAME */
 timetableData[section][d][p] = sub.name + " (" + sub.staff + ")";
 
 usedStaff.add(sub.staff);
