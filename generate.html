@@ -263,6 +263,7 @@ showToast("Please generate sections first");
 return;
 }
 
+/* CLEAR OLD */
 localStorage.removeItem("timetable_"+selected);
 
 /* FILTER SUBJECTS */
@@ -278,15 +279,15 @@ const periods = Number(dep.periods);
 
 let timetableData = {};
 
-/* 🔥 GLOBAL TRACKERS (STRICT) */
-let subjectBusy = {};
+/* 🔥 GLOBAL STAFF TRACKER */
 let staffBusy = {};
 
+/* LOOP SECTIONS */
 sections.forEach(sectionName => {
 
 let grid = [];
 
-/* CREATE EMPTY GRID */
+/* EMPTY GRID */
 for(let d=0; d<days; d++){
 grid[d] = new Array(periods).fill("-");
 }
@@ -298,7 +299,7 @@ depSubjects.forEach(sub => {
 for(let i=0;i<sub.credits;i++){
 subjectPool.push({
 name: sub.name,
-staff: sub.staff   // ❗ NO fallback "unknown"
+staff: sub.staff || "unknown"
 });
 }
 });
@@ -312,6 +313,7 @@ for(let p=0; p<periods; p++){
 
 let placed = false;
 
+/* TRY ALL SUBJECTS */
 for(let i=0;i<subjectPool.length;i++){
 
 let subjectObj = subjectPool[i];
@@ -321,31 +323,29 @@ let teacher = subjectObj.staff;
 let timeKey = `${d}-${p}`;
 
 /* INIT */
-if(!subjectBusy[timeKey]) subjectBusy[timeKey] = [];
 if(!staffBusy[timeKey]) staffBusy[timeKey] = [];
 
-/* STRICT CHECK */
-let subjectClash = subjectBusy[timeKey].some(s => s === subject);
-let staffClash = staffBusy[timeKey].some(t => t === teacher);
+/* CHECK ONLY STAFF CLASH */
+let staffClash = staffBusy[timeKey].includes(teacher);
 
-/* ONLY PLACE IF FULLY SAFE */
-if(!subjectClash && !staffClash){
+if(!staffClash){
 
+/* PLACE */
 grid[d][p] = subject;
 
-subjectBusy[timeKey].push(subject);
+/* MARK BUSY */
 staffBusy[timeKey].push(teacher);
 
+/* REMOVE FROM POOL */
 subjectPool.splice(i,1);
 
 placed = true;
 break;
-
 }
 
 }
 
-/* STRICT MODE: NO FORCE */
+/* IF NOT POSSIBLE → LEAVE EMPTY (NO FORCE) */
 if(!placed){
 grid[d][p] = "-";
 }
@@ -364,9 +364,7 @@ document.getElementById("successMsg").innerText =
 "✔ Timetable generated successfully";
 
 showToast("Timetable Generated Successfully");
-
 }
-
 
 
 
