@@ -278,7 +278,7 @@ const periods = Number(dep.periods);
 
 let timetableData = {};
 
-/* 🔥 GLOBAL TRACKERS */
+/* 🔥 GLOBAL TRACKERS (STRICT) */
 let subjectBusy = {};
 let staffBusy = {};
 
@@ -298,7 +298,7 @@ depSubjects.forEach(sub => {
 for(let i=0;i<sub.credits;i++){
 subjectPool.push({
 name: sub.name,
-staff: sub.staff || "unknown"
+staff: sub.staff   // ❗ NO fallback "unknown"
 });
 }
 });
@@ -320,24 +320,22 @@ let teacher = subjectObj.staff;
 
 let timeKey = `${d}-${p}`;
 
-/* INIT TRACKERS */
+/* INIT */
 if(!subjectBusy[timeKey]) subjectBusy[timeKey] = [];
 if(!staffBusy[timeKey]) staffBusy[timeKey] = [];
 
-/* CHECK CLASH */
-let subjectClash = subjectBusy[timeKey].includes(subject);
-let staffClash = staffBusy[timeKey].includes(teacher);
+/* STRICT CHECK */
+let subjectClash = subjectBusy[timeKey].some(s => s === subject);
+let staffClash = staffBusy[timeKey].some(t => t === teacher);
 
+/* ONLY PLACE IF FULLY SAFE */
 if(!subjectClash && !staffClash){
 
-/* PLACE */
 grid[d][p] = subject;
 
-/* MARK BUSY */
 subjectBusy[timeKey].push(subject);
 staffBusy[timeKey].push(teacher);
 
-/* REMOVE FROM POOL */
 subjectPool.splice(i,1);
 
 placed = true;
@@ -347,7 +345,7 @@ break;
 
 }
 
-/* FALLBACK (only if needed) */
+/* STRICT MODE: NO FORCE */
 if(!placed){
 grid[d][p] = "-";
 }
