@@ -231,143 +231,139 @@ box.innerHTML = `
 
 
 
-function generateTimetable() {
+function generateTimetable(){
 
-  const isPro = localStorage.getItem("isProUser") === "true";
-  let generated = localStorage.getItem("timetableGenerated");
+const isPro = localStorage.getItem("isProUser") === "true";
+let generated = localStorage.getItem("timetableGenerated");
 
-  if (!isPro && generated === "true") {
-    showToast("Free plan allows only 1 timetable. Upgrade to Pro.");
-    return;
-  }
+if(!isPro && generated === "true"){
+showToast("Free plan allows only 1 timetable. Upgrade to Pro.");
+return;
+}
 
-  localStorage.setItem("timetableGenerated", "true");
+localStorage.setItem("timetableGenerated","true");
 
-  const selected = document.getElementById("departmentSelect").value;
+const selected = document.getElementById("departmentSelect").value;
 
-  if (!selected) {
-    showToast("Please select department");
-    return;
-  }
+if(!selected){
+showToast("Please select department");
+return;
+}
 
-  const departments = JSON.parse(localStorage.getItem("departments")) || [];
-  const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 
-  const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
-  if (!dep) return;
+const dep = departments.find(d => (d.name+"_sem_"+d.semester) === selected);
+if(!dep) return;
 
-  const sections = JSON.parse(localStorage.getItem("sections_" + selected)) || [];
+const sections = JSON.parse(localStorage.getItem("sections_"+selected)) || [];
 
-  if (sections.length === 0) {
-    showToast("Please generate sections first");
-    return;
-  }
+if(sections.length === 0){
+showToast("Please generate sections first");
+return;
+}
 
-  localStorage.removeItem("timetable_" + selected);
+/* CLEAR OLD */
+localStorage.removeItem("timetable_"+selected);
 
-  const depSubjects = subjects.filter(s =>
-    s.dept &&
-    s.sem &&
-    s.dept.trim().toLowerCase() === dep.name.trim().toLowerCase() &&
-    String(s.sem).trim() === String(dep.semester).trim()
-  );
+/* FILTER SUBJECTS */
+const depSubjects = subjects.filter(s =>
+s.dept &&
+s.sem &&
+s.dept.trim().toLowerCase() === dep.name.trim().toLowerCase() &&
+String(s.sem).trim() === String(dep.semester).trim()
+);
 
-  const days = Number(dep.days);
-  const periods = Number(dep.periods);
+const days = Number(dep.days);
+const periods = Number(dep.periods);
 
-  let timetableData = {};
-  let staffBusy = {}; // KEY = day-period, VALUE = array of busy staff
+let timetableData = {};
 
-  // INIT staffBusy
-  for (let d = 0; d < days; d++) {
-    for (let p = 0; p < periods; p++) {
-      staffBusy[`${d}-${p}`] = [];
-    }
-  }
+/* 🔥 GLOBAL STAFF TRACKER */
+let staffBusy = {};
 
-  sections.forEach(sectionName => {
+/* LOOP SECTIONS */
+sections.forEach(sectionName => {
 
-    let grid = [];
-    for (let d = 0; d < days; d++) {
-      grid[d] = new Array(periods).fill("-");
-    }
+let grid = [];
 
-    // 🔥 EXPAND SUBJECTS BASED ON CREDITS
-    let subjectPool = [];
+/* EMPTY GRID */
+for(let d=0; d<days; d++){
+grid[d] = new Array(periods).fill("-");
+}
 
-    depSubjects.forEach(sub => {
-      let credits = Number(sub.credits) || 1;
+/* CREATE SUBJECT POOL */
+let subjectPool = [];
 
-      for (let i = 0; i < credits; i++) {
-        subjectPool.push({
-          name: sub.name,
-          staff: sub.staff || "unknown"
-        });
-      }
-    });
+depSubjects.forEach(sub => {
+for(let i=0;i<sub.credits;i++){
+subjectPool.push({
+name: sub.name,
+staff: sub.staff || "unknown"
+});
+}
+});
 
-    // 🔥 MAIN SAFE ALLOCATION
-    subjectPool.forEach(subjectObj => {
+/* SHUFFLE */
+subjectPool.sort(()=>Math.random()-0.5);
 
-      let placed = false;
+/* FILL GRID */
+for(let d=0; d<days; d++){
+for(let p=0; p<periods; p++){
 
-      // TRY ALL SLOTS (NOT RANDOM)
-      for (let d = 0; d < days; d++) {
-        for (let p = 0; p < periods; p++) {
+let placed = false;
 
-          let timeKey = `${d}-${p}`;
+/* TRY ALL SUBJECTS */
+for(let i=0;i<subjectPool.length;i++){
 
-          if (
-            grid[d][p] === "-" && // class free
-            !staffBusy[timeKey].includes(subjectObj.staff) // staff free
-          ) {
+let subjectObj = subjectPool[i];
+let subject = subjectObj.name;
+let teacher = subjectObj.staff;
 
-            grid[d][p] = subjectObj.name;
-            staffBusy[timeKey].push(subjectObj.staff);
+let timeKey = `${d}-${p}`;
 
-            placed = true;
-            break;
-          }
-        }
-        if (placed) break;
-      }
+/* INIT */
+if(!staffBusy[timeKey]) staffBusy[timeKey] = [];
 
-      // 🔥 IF STILL NOT PLACED → FORCE SAFE RANDOM (LAST RESORT)
-      if (!placed) {
+/* CHECK ONLY STAFF CLASH */
+let staffClash = staffBusy[timeKey].includes(teacher);
 
-        let attempts = 0;
+if(!staffClash){
 
-        while (attempts < 1000) {
+/* PLACE */
+grid[d][p] = subject;
 
-          let d = Math.floor(Math.random() * days);
-          let p = Math.floor(Math.random() * periods);
-          let timeKey = `${d}-${p}`;
+/* MARK BUSY */
+staffBusy[timeKey].push(teacher);
 
-          if (
-            grid[d][p] === "-" &&
-            !staffBusy[timeKey].includes(subjectObj.staff)
-          ) {
+/* REMOVE FROM POOL */
+subjectPool.splice(i,1);
 
-            grid[d][p] = subjectObj.name;
-            staffBusy[timeKey].push(subjectObj.staff);
+placed = true;
+break;
+}
 
-            break;
-          }
+}
 
-          attempts++;
-        }
-      }
+/* IF NOT POSSIBLE → LEAVE EMPTY (NO FORCE) */
+if(!placed){
+grid[d][p] = "-";
+}
 
-    });
+}
+}
 
-    timetableData[sectionName] = grid;
+timetableData[sectionName] = grid;
 
-  });
+});
 
-  localStorage.setItem("timetable_" + selected, JSON.stringify(timetableData));
+/* SAVE */
+localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
 
-  document.getElementById("successMsg").innerText = "✔ Timetable generated successfully";
-  showToast("Timetable Generated Successfully");
+document.getElementById("successMsg").innerText =
+"✔ Timetable generated successfully";
+
+showToast("Timetable Generated Successfully");
 }
 
 
