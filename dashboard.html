@@ -24,7 +24,7 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 
-/* AUTH CHECK */
+
 
 firebase.auth().onAuthStateChanged(function(user){
 
@@ -32,12 +32,20 @@ if(user){
 
 document.body.style.display = "block";
 
+const proUsers = [
+"staff@college.com",
+"hod@college.com",
+"gayathiridevi182005@gmail.com"
+];
+
+if(proUsers.includes(user.email)){
+localStorage.setItem("isProUser","true");
+}
+
 const emailElement = document.getElementById("userEmail");
 
 if(emailElement){
-
 emailElement.innerText = user.email;
-
 }
 
 }
@@ -55,7 +63,7 @@ window.location.replace("index.html");
 
 <div class="layout">
 
-<!-- SIDEBAR -->
+
 <div class="sidebar">
 
 <div class="sidebar-header">
@@ -72,6 +80,7 @@ window.location.replace("index.html");
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
 <li><a href="guidelines.html">System Guidelines</a></li>
+<li><a href="faculty.html">Staff Timetable</a></li>
 </ul>
 
 <div class="logout-section">
@@ -90,7 +99,7 @@ window.location.replace("index.html");
 </div>
 
 
-<!-- RIGHT CONTENT -->
+
 <div class="content-area">
 
 <div class="top-navbar">
@@ -177,14 +186,14 @@ window.location.replace("index.html");
 });
 
 }
-/* CHECK PRO STATUS */
+
 
 if(localStorage.getItem("isProUser") === null){
 localStorage.setItem("isProUser","false");
 }
 
 
-/* Dashboard Counts */
+
 
 function updateDashboardCounts() {
 
@@ -192,7 +201,7 @@ const departments = JSON.parse(localStorage.getItem("departments")) || [];
 const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 const staff = JSON.parse(localStorage.getItem("staff")) || [];
 
-/* COUNT TIMETABLES */
+
 
 let timetableCount = 0;
 
