@@ -265,7 +265,9 @@ return;
 
 localStorage.removeItem("timetable_"+selected);
 
-/* FILTER SUBJECTS */
+/* 🔥 GLOBAL STAFF TRACK */
+let staffBusy = JSON.parse(localStorage.getItem("globalStaffBusy")) || {};
+
 const depSubjects = subjects.filter(s =>
 s.dept &&
 s.sem &&
@@ -277,9 +279,6 @@ const days = Number(dep.days);
 const periods = Number(dep.periods);
 
 let timetableData = {};
-
-/* 🔥 GLOBAL STAFF TRACK (FIX) */
-let staffBusy = JSON.parse(localStorage.getItem("globalStaffBusy")) || {};
 
 /* INIT TABLE */
 sections.forEach(section => {
@@ -307,21 +306,18 @@ staff: sub.staff || "unknown"
 }
 });
 
-/* shuffle */
 sectionPools[section].sort(()=>Math.random()-0.5);
 
 });
 
 
-/* 🔥 SLOT BASED STRICT ALLOCATION */
+/* 🔥 SLOT BASED */
 for(let d=0; d<days; d++){
-
 for(let p=0; p<periods; p++){
 
 let usedStaff = new Set();
-
-/* INIT GLOBAL SLOT IF NOT EXISTS */
 let timeKey = `${d}-${p}`;
+
 if(!staffBusy[timeKey]){
 staffBusy[timeKey] = [];
 }
@@ -334,19 +330,16 @@ let placed = false;
 for(let i=0;i<pool.length;i++){
 
 let sub = pool[i];
-
-/* prevent repeat */
 let prev = (p>0) ? timetableData[section][d][p-1] : null;
-let prevDay = (d>0) ? timetableData[section][d-1][p] : null;
 
-/* STRICT CHECK WITH GLOBAL STAFF */
+/* ✅ HARD RULE: NO STAFF CLASH */
 if(
 !usedStaff.has(sub.staff) &&
 !staffBusy[timeKey].includes(sub.staff) &&
-sub.name !== prev &&
-sub.name !== prevDay
+sub.name !== prev
 ){
 
+/* ✅ STORE WITH STAFF NAME (IMPORTANT FIX) */
 timetableData[section][d][p] = sub.name + " (" + sub.staff + ")";
 
 usedStaff.add(sub.staff);
@@ -360,7 +353,7 @@ break;
 
 }
 
-/* 🚫 NO FORCE */
+/* if not placed */
 if(!placed){
 timetableData[section][d][p] = "-";
 }
@@ -368,10 +361,9 @@ timetableData[section][d][p] = "-";
 });
 
 }
-
 }
 
-/* 🔥 SAVE GLOBAL STAFF (FIX) */
+/* SAVE GLOBAL STAFF */
 localStorage.setItem("globalStaffBusy", JSON.stringify(staffBusy));
 
 /* SAVE TIMETABLE */
