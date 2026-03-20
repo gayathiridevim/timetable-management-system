@@ -231,175 +231,65 @@ box.innerHTML = `
 
 
 
-function generateTimetable(){
+function generateTimetable() {
 
-const isPro = localStorage.getItem("isProUser") === "true";
-let generated = localStorage.getItem("timetableGenerated");
+    let days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    let periods = 6;
 
-if(!isPro && generated === "true"){
-showToast("Free plan allows only 1 timetable. Upgrade to Pro.");
-return;
+    let timetable = {};
+    let staffSchedule = {};
+
+    // Initialize empty timetable
+    classes.forEach(cls => {
+        timetable[cls] = {};
+        days.forEach(day => {
+            timetable[cls][day] = new Array(periods).fill(null);
+        });
+    });
+
+    // Initialize staff schedule
+    staffList.forEach(staff => {
+        staffSchedule[staff.name] = {};
+        days.forEach(day => {
+            staffSchedule[staff.name][day] = new Array(periods).fill(null);
+        });
+    });
+
+    // Assign subjects
+    classes.forEach(cls => {
+
+        let subjects = subjectMap[cls];
+
+        subjects.forEach(sub => {
+
+            let hours = sub.hours;
+            let teacher = sub.staff;
+
+            while (hours > 0) {
+
+                let day = days[Math.floor(Math.random() * days.length)];
+                let period = Math.floor(Math.random() * periods);
+
+                // ✅ CHECK BOTH CONDITIONS
+                if (
+                    timetable[cls][day][period] === null &&
+                    staffSchedule[teacher][day][period] === null
+                ) {
+
+                    timetable[cls][day][period] = sub.name + " (" + teacher + ")";
+                    staffSchedule[teacher][day][period] = cls;
+
+                    hours--;
+                }
+            }
+        });
+    });
+
+    localStorage.setItem("timetable", JSON.stringify(timetable));
+    localStorage.setItem("staffSchedule", JSON.stringify(staffSchedule));
+
+    alert("✅ Timetable Generated WITHOUT clashes!");
 }
-
-localStorage.setItem("timetableGenerated","true");
-
-const selected = document.getElementById("departmentSelect").value;
-
-if(!selected){
-showToast("Please select department");
-return;
-}
-
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
-const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-const staffList = JSON.parse(localStorage.getItem("staff")) || [];
-
-const dep = departments.find(d => (d.name+"_sem_"+d.semester) === selected);
-if(!dep) return;
-
-const sections = JSON.parse(localStorage.getItem("sections_"+selected)) || [];
-
-if(sections.length === 0){
-showToast("Please generate sections first");
-return;
-}
-
-localStorage.removeItem("timetable_"+selected);
-
-/* 🔥 GLOBAL STAFF TRACK */
-let staffBusy = JSON.parse(localStorage.getItem("globalStaffBusy")) || {};
-
-const days = Number(dep.days);
-const periods = Number(dep.periods);
-
-let timetableData = {};
-
-/* INIT TABLE */
-sections.forEach(section => {
-timetableData[section] = [];
-for(let d=0; d<days; d++){
-timetableData[section][d] = new Array(periods).fill("-");
-}
-});
-
-/* CREATE POOLS */
-let sectionPools = {};
-
-sections.forEach(section => {
-
-sectionPools[section] = [];
-
-/* 🔥 USE ALL SUBJECTS (NO FILTER BREAKING) */
-subjects.forEach(sub => {
-
-let credits = Number(sub.credits) || 1;
-
-/* 🔥 MAP STAFF FROM STAFF TABLE */
-let staffObj = staffList.find(s =>
-s.subject && sub.name &&
-s.subject.toLowerCase().trim() === sub.name.toLowerCase().trim()
-);
-
-let staffName = staffObj ? staffObj.name : "NoStaff";
-
-for(let i=0;i<credits;i++){
-sectionPools[section].push({
-name: sub.name,
-staff: staffName
-});
-}
-
-});
-
-sectionPools[section].sort(()=>Math.random()-0.5);
-
-});
-
-
-/* 🔥 SLOT BASED ALLOCATION */
-for(let d=0; d<days; d++){
-for(let p=0; p<periods; p++){
-
-let usedStaff = new Set();
-let timeKey = `${d}-${p}`;
-
-if(!staffBusy[timeKey]){
-staffBusy[timeKey] = [];
-}
-
-sections.forEach(section => {
-
-let pool = sectionPools[section];
-let placed = false;
-
-for(let i=0;i<pool.length;i++){
-
-let sub = pool[i];
-let prev = (p>0) ? timetableData[section][d][p-1] : null;
-
-if(
-!usedStaff.has(sub.staff) &&
-!staffBusy[timeKey].includes(sub.staff) &&
-sub.name !== prev
-){
-
-timetableData[section][d][p] = sub.name + " (" + sub.staff + ")";
-
-usedStaff.add(sub.staff);
-staffBusy[timeKey].push(sub.staff);
-
-pool.splice(i,1);
-
-placed = true;
-break;
-}
-
-}
-
-/* 🔥 FALLBACK (fill but no clash) */
-if(!placed){
-
-for(let i=0;i<pool.length;i++){
-
-let sub = pool[i];
-
-if(!staffBusy[timeKey].includes(sub.staff)){
-
-timetableData[section][d][p] = sub.name + " (" + sub.staff + ")";
-
-staffBusy[timeKey].push(sub.staff);
-pool.splice(i,1);
-
-placed = true;
-break;
-}
-
-}
-
-}
-
-/* LAST SAFETY */
-if(!placed){
-timetableData[section][d][p] = "-";
-}
-
-});
-
-}
-}
-
-/* SAVE GLOBAL STAFF */
-localStorage.setItem("globalStaffBusy", JSON.stringify(staffBusy));
-
-/* SAVE TIMETABLE */
-localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
-
-document.getElementById("successMsg").innerText =
-"✔ Timetable generated successfully";
-
-showToast("Timetable Generated Successfully");
-}
-
 function showToast(message){
 
 const toast = document.getElementById("toast");
