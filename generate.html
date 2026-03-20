@@ -347,7 +347,7 @@ sub.name !== prev &&
 sub.name !== prevDay
 ){
 
-timetableData[section][d][p] = sub.name;
+timetableData[section][d][p] = sub.name + " (" + sub.staff + ")";
 
 usedStaff.add(sub.staff);
 staffBusy[timeKey].push(sub.staff);
