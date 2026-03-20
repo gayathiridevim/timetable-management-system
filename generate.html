@@ -348,22 +348,8 @@ break;
 }
 
 /* FALLBACK (only if needed) */
-if(!placed && subjectPool.length > 0){
-
-let subjectObj = subjectPool.shift();
-let subject = subjectObj.name;
-let teacher = subjectObj.staff;
-
-grid[d][p] = subject;
-
-let timeKey = `${d}-${p}`;
-
-if(!subjectBusy[timeKey]) subjectBusy[timeKey] = [];
-if(!staffBusy[timeKey]) staffBusy[timeKey] = [];
-
-subjectBusy[timeKey].push(subject);
-staffBusy[timeKey].push(teacher);
-
+if(!placed){
+grid[d][p] = "-";
 }
 
 }
