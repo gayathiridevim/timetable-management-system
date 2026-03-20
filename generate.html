@@ -28,7 +28,25 @@ firebase.initializeApp(firebaseConfig);
 firebase.auth().onAuthStateChanged(function(user){
 
 if(user){
+
 document.body.style.display = "block";
+
+const proUsers = [
+"staff@college.com",
+"hod@college.com",
+"gayathiridevi182005@gmail.com"
+];
+
+if(proUsers.includes(user.email)){
+localStorage.setItem("isProUser","true");
+}
+
+const emailElement = document.getElementById("userEmail");
+
+if(emailElement){
+emailElement.innerText = user.email;
+}
+
 }
 else{
 window.location.replace("index.html");
@@ -65,6 +83,7 @@ word-break: break-all;
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
 <li><a href="guidelines.html">System Guidelines</a></li>
+<li><a href="faculty.html">Staff Timetable</a></li>
 </ul>
 
 <div class="logout-section">
@@ -149,14 +168,14 @@ document.getElementById("departmentSelect")
 
 
 
-/* LOAD DEPARTMENTS */
+
 
 function loadDepartments(){
 
 const departments = JSON.parse(localStorage.getItem("departments")) || [];
 const select = document.getElementById("departmentSelect");
 
-/* reset dropdown */
+
 select.innerHTML = `<option value="">Select Department</option>`;
 
 departments.forEach(dep => {
@@ -175,7 +194,7 @@ select.appendChild(option);
 }
 
 
-/* SHOW DEPARTMENT DETAILS */
+
 
 function showDepartmentDetails(){
 
@@ -210,7 +229,7 @@ box.innerHTML = `
 }
 
 
-/* GENERATE TIMETABLE */
+
 
 function generateTimetable(){
 const isPro = localStorage.getItem("isProUser") === "true";
@@ -238,7 +257,7 @@ const dep = departments.find(d => (d.name+"_sem_"+d.semester) === selected);
 if(!dep) return;
 
 
-/* CHECK SECTIONS */
+
 
 const sections = JSON.parse(localStorage.getItem("sections_"+selected)) || [];
 
@@ -248,12 +267,12 @@ return;
 }
 
 
-/* REMOVE OLD TIMETABLE */
+
 
 localStorage.removeItem("timetable_"+selected);
 
 
-/* FILTER SUBJECTS */
+
 
 const depSubjects = subjects.filter(s =>
 s.dept &&
@@ -269,19 +288,18 @@ const periods = Number(dep.periods);
 let timetableData = {};
 
 
-/* CREATE GRID FOR EACH SECTION */
+
 
 sections.forEach(sectionName => {
 
 let grid = [];
 
-/* CREATE EMPTY GRID */
+
 
 for(let d=0; d<days; d++){
 grid[d] = new Array(periods).fill("-");
 }
 
-/* BUILD SUBJECT POOL */
 
 let subjectPool = [];
 
@@ -291,15 +309,12 @@ subjectPool.push(sub.name);
 }
 });
 
-/* RANDOMIZE SUBJECTS */
+
 
 subjectPool.sort(()=>Math.random()-0.5);
 
 let index = 0;
 
-/* FILL GRID */
-
-/* FILL GRID WITH CLASH CHECK */
 
 for(let d=0; d<days; d++){
 for(let p=0; p<periods; p++){
@@ -310,7 +325,7 @@ for(let i=0;i<subjectPool.length;i++){
 
 let subject = subjectPool[i];
 
-/* CHECK OTHER SECTIONS */
+
 
 let clash = false;
 
@@ -352,12 +367,12 @@ timetableData[sectionName] = grid;
 });
 
 
-/* SAVE TIMETABLE */
+
 
 localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
 
 
-/* SUCCESS MESSAGE */
+
 
 document.getElementById("successMsg").innerText =
 "✔ Timetable generated successfully";
@@ -367,7 +382,7 @@ showToast("Timetable Generated Successfully");
 }
 
 
-/* TOAST */
+
 
 function showToast(message){
 
@@ -384,7 +399,7 @@ toast.classList.remove("show");
 }
 
 
-/* LOGOUT */
+
 
 function logout(){
 
@@ -393,7 +408,7 @@ window.location.replace("index.html");
 });
 
 }
-/* CHECK PRO STATUS */
+
 
 if(localStorage.getItem("isProUser") === null){
 localStorage.setItem("isProUser","false");
