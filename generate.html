@@ -252,7 +252,7 @@ return;
 
 const departments = JSON.parse(localStorage.getItem("departments")) || [];
 const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-const staffList = JSON.parse(localStorage.getItem("staff")) || []; // 🔥 IMPORTANT
+const staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
 const dep = departments.find(d => (d.name+"_sem_"+d.semester) === selected);
 if(!dep) return;
@@ -268,13 +268,6 @@ localStorage.removeItem("timetable_"+selected);
 
 /* 🔥 GLOBAL STAFF TRACK */
 let staffBusy = JSON.parse(localStorage.getItem("globalStaffBusy")) || {};
-
-const depSubjects = subjects.filter(s =>
-s.dept &&
-s.sem &&
-s.dept.trim().toLowerCase() === dep.name.trim().toLowerCase() &&
-String(s.sem).trim() === String(dep.semester).trim()
-);
 
 const days = Number(dep.days);
 const periods = Number(dep.periods);
@@ -296,16 +289,18 @@ sections.forEach(section => {
 
 sectionPools[section] = [];
 
-depSubjects.forEach(sub => {
+/* 🔥 USE ALL SUBJECTS (NO FILTER BREAKING) */
+subjects.forEach(sub => {
 
 let credits = Number(sub.credits) || 1;
 
 /* 🔥 MAP STAFF FROM STAFF TABLE */
 let staffObj = staffList.find(s =>
+s.subject && sub.name &&
 s.subject.toLowerCase().trim() === sub.name.toLowerCase().trim()
 );
 
-let staffName = staffObj ? staffObj.name : "unknown";
+let staffName = staffObj ? staffObj.name : "NoStaff";
 
 for(let i=0;i<credits;i++){
 sectionPools[section].push({
@@ -321,7 +316,7 @@ sectionPools[section].sort(()=>Math.random()-0.5);
 });
 
 
-/* 🔥 SLOT BASED */
+/* 🔥 SLOT BASED ALLOCATION */
 for(let d=0; d<days; d++){
 for(let p=0; p<periods; p++){
 
@@ -342,14 +337,12 @@ for(let i=0;i<pool.length;i++){
 let sub = pool[i];
 let prev = (p>0) ? timetableData[section][d][p-1] : null;
 
-/* ✅ HARD RULE: NO STAFF CLASH */
 if(
 !usedStaff.has(sub.staff) &&
 !staffBusy[timeKey].includes(sub.staff) &&
 sub.name !== prev
 ){
 
-/* ✅ STORE WITH STAFF NAME */
 timetableData[section][d][p] = sub.name + " (" + sub.staff + ")";
 
 usedStaff.add(sub.staff);
@@ -363,7 +356,29 @@ break;
 
 }
 
-/* if not placed */
+/* 🔥 FALLBACK (fill but no clash) */
+if(!placed){
+
+for(let i=0;i<pool.length;i++){
+
+let sub = pool[i];
+
+if(!staffBusy[timeKey].includes(sub.staff)){
+
+timetableData[section][d][p] = sub.name + " (" + sub.staff + ")";
+
+staffBusy[timeKey].push(sub.staff);
+pool.splice(i,1);
+
+placed = true;
+break;
+}
+
+}
+
+}
+
+/* LAST SAFETY */
 if(!placed){
 timetableData[section][d][p] = "-";
 }
@@ -384,7 +399,6 @@ document.getElementById("successMsg").innerText =
 
 showToast("Timetable Generated Successfully");
 }
-
 
 function showToast(message){
 
