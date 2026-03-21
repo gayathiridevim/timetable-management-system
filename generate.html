@@ -233,106 +233,130 @@ box.innerHTML = `
 
 function generateTimetable(){
 
+const isPro = localStorage.getItem("isProUser") === "true";
+let generated = localStorage.getItem("timetableGenerated");
+
+if(!isPro && generated === "true"){
+    showToast("Free plan allows only 1 timetable. Upgrade to Pro.");
+    return;
+}
+
+localStorage.setItem("timetableGenerated","true");
+
 const selected = document.getElementById("departmentSelect").value;
+
+if(!selected){
+    showToast("Please select department");
+    return;
+}
 
 const departments = JSON.parse(localStorage.getItem("departments")) || [];
 const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 
-const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
+const dep = departments.find(d => (d.name+"_sem_"+d.semester) === selected);
+if(!dep) return;
 
-if (!dep) {
-    showToast("Department not found");
-    return;
-}
+const sections = JSON.parse(localStorage.getItem("sections_"+selected)) || [];
 
-const sections = JSON.parse(localStorage.getItem("sections_" + selected)) || [];
-
-if (sections.length === 0) {
+if(sections.length === 0){
     showToast("Please generate sections first");
     return;
 }
+
+localStorage.removeItem("timetable_"+selected);
+
+/* FILTER SUBJECTS */
+const depSubjects = subjects.filter(s =>
+    s.dept &&
+    s.sem &&
+    s.dept.trim().toLowerCase() === dep.name.trim().toLowerCase() &&
+    String(s.sem).trim() === String(dep.semester).trim()
+);
 
 const days = Number(dep.days);
 const periods = Number(dep.periods);
 
 let timetableData = {};
 
-/* 🔥 GLOBAL STAFF TRACKER */
-let staffBusy = Array.from({ length: days }, () =>
-    Array.from({ length: periods }, () => new Set())
-);
+/* 🔥 GLOBAL STAFF TRACKER (ONLY STAFF CLASH) */
+let globalStaffBusy = {};
 
-/* FILTER SUBJECTS */
-const depSubjects = subjects.filter(s =>
-    s.dept?.trim().toLowerCase() === dep.name.trim().toLowerCase() &&
-    String(s.sem).trim() === String(dep.semester).trim()
-);
-
-/* LOOP EACH SECTION */
 sections.forEach(sectionName => {
 
-    let grid = Array.from({ length: days }, () => new Array(periods).fill("-"));
+    let grid = [];
 
-    /* CREATE POOL */
-    let pool = [];
+    /* CREATE EMPTY GRID */
+    for(let d=0; d<days; d++){
+        grid[d] = new Array(periods).fill("-");
+    }
+
+    /* CREATE SUBJECT POOL */
+    let subjectPool = [];
 
     depSubjects.forEach(sub => {
-        for (let i = 0; i < (Number(sub.credits) || 0); i++) {
-            pool.push({
+        for(let i=0;i<sub.credits;i++){
+            subjectPool.push({
                 name: sub.name,
-                staff: sub.staff || "Unknown"
+                staff: sub.staff
             });
         }
     });
 
     /* SHUFFLE */
-    pool.sort(() => Math.random() - 0.5);
+    subjectPool.sort(()=>Math.random()-0.5);
 
     /* FILL GRID */
-    for (let d = 0; d < days; d++) {
+    for(let d=0; d<days; d++){
+        for(let p=0; p<periods; p++){
 
-        let usedToday = new Set();
+            let placed = false;
 
-        for (let p = 0; p < periods; p++) {
+            for(let i=0;i<subjectPool.length;i++){
 
-            let assigned = false;
+                let subjectObj = subjectPool[i];
+                let subject = subjectObj.name;
+                let teacher = subjectObj.staff;
 
-            for (let i = 0; i < pool.length; i++) {
+                let timeKey = `${d}-${p}`;
 
-                const subject = pool[i];
+                if(!globalStaffBusy[timeKey]){
+                    globalStaffBusy[timeKey] = [];
+                }
 
-                const isBusy = staffBusy[d][p].has(subject.staff);
-                const alreadyToday = usedToday.has(subject.name);
+                let staffClash = globalStaffBusy[timeKey].includes(teacher);
 
-                if (!isBusy && !alreadyToday) {
+                if(!staffClash){
 
-                    grid[d][p] = subject.name;
+                    grid[d][p] = subject;
 
-                    staffBusy[d][p].add(subject.staff);
-                    usedToday.add(subject.name);
+                    globalStaffBusy[timeKey].push(teacher);
 
-                    pool.splice(i, 1);
+                    subjectPool.splice(i,1);
 
-                    assigned = true;
+                    placed = true;
                     break;
                 }
             }
 
-            /* ✅ IF NOTHING FITS → LEAVE EMPTY */
-            if (!assigned) {
-                grid[d][p] = "-";
+            /* IF NOTHING FITS → FILL ANY LEFT SUBJECT (LAST OPTION) */
+            if(!placed && subjectPool.length > 0){
+                let subjectObj = subjectPool.shift();
+                grid[d][p] = subjectObj.name;
             }
+
         }
     }
 
     timetableData[sectionName] = grid;
+
 });
 
 /* SAVE */
-localStorage.setItem("timetableGenerated", "true");
-localStorage.setItem("timetable_" + selected, JSON.stringify(timetableData));
+localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
 
-document.getElementById("successMsg").innerText = "✔ Timetable generated successfully";
+document.getElementById("successMsg").innerText =
+"✔ Timetable generated successfully";
+
 showToast("Timetable Generated Successfully");
 
 }
