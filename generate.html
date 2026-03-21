@@ -231,95 +231,110 @@ box.innerHTML = `
 
 
 
-function generateTimetable() {
-    // 1. Plan Check
-    const isPro = localStorage.getItem("isProUser") === "true";
-    let generated = localStorage.getItem("timetableGenerated");
+function generateTimetable(){
 
-    if (!isPro && generated === "true") {
-        showToast("Free plan allows only 1 timetable. Upgrade to Pro.");
-        return;
-    }
+const selected = document.getElementById("departmentSelect").value;
 
-    // 2. Data Retrieval
-    const selected = document.getElementById("departmentSelect").value;
-    const departments = JSON.parse(localStorage.getItem("departments")) || [];
-    const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-    const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 
-    if (!dep) {
-        showToast("Department not found");
-        return;
-    }
+const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
 
-    const sections = JSON.parse(localStorage.getItem("sections_" + selected)) || [];
-    if (sections.length === 0) {
-        showToast("Please generate sections first");
-        return;
-    }
+if (!dep) {
+    showToast("Department not found");
+    return;
+}
 
-    const days = Number(dep.days);
-    const periods = Number(dep.periods);
-    let timetableData = {};
+const sections = JSON.parse(localStorage.getItem("sections_" + selected)) || [];
 
-    /* 🛡️ THE ANTI-CLASH ENGINE */
-    // This tracks which staff is busy at [day][period] across ALL sections
-    let staffBusy = Array.from({ length: days }, () => 
-        Array.from({ length: periods }, () => [])
-    );
+if (sections.length === 0) {
+    showToast("Please generate sections first");
+    return;
+}
 
-    // Filter only subjects for this Dept/Semester
-    const depSubjects = subjects.filter(s =>
-        s.dept?.trim().toLowerCase() === dep.name.trim().toLowerCase() &&
-        String(s.sem).trim() === String(dep.semester).trim()
-    );
+const days = Number(dep.days);
+const periods = Number(dep.periods);
 
-    /* 3. LOOP THROUGH EACH SECTION */
-    sections.forEach(sectionName => {
-        let grid = Array.from({ length: days }, () => new Array(periods).fill("-"));
-        
-        // Create the pool of subjects based on credits
-        let pool = [];
-        depSubjects.forEach(sub => {
-            for (let i = 0; i < (Number(sub.credits) || 0); i++) {
-                pool.push({ name: sub.name, staff: sub.staff || "Unknown" });
-            }
-        });
+let timetableData = {};
 
-        // Shuffle pool for randomness
-        pool.sort(() => Math.random() - 0.5);
+/* 🔥 GLOBAL STAFF TRACKER */
+let staffBusy = Array.from({ length: days }, () =>
+    Array.from({ length: periods }, () => new Set())
+);
 
-        /* 4. FILL THE SLOTS */
-        for (let d = 0; d < days; d++) {
-            for (let p = 0; p < periods; p++) {
-                
-                for (let i = 0; i < pool.length; i++) {
-                    const subject = pool[i];
-                    
-                    // CLASH CHECK: Is this teacher already in another section at this day/period?
-                    const isStaffBusy = staffBusy[d][p].includes(subject.staff);
-                    
-                    // VARIETY CHECK: Does this section already have this subject today?
-                    const alreadyToday = grid[d].includes(subject.name);
+/* FILTER SUBJECTS */
+const depSubjects = subjects.filter(s =>
+    s.dept?.trim().toLowerCase() === dep.name.trim().toLowerCase() &&
+    String(s.sem).trim() === String(dep.semester).trim()
+);
 
-                    if (!isStaffBusy && !alreadyToday) {
-                        grid[d][p] = subject.name;
-                        staffBusy[d][p].push(subject.staff); // Mark staff as busy
-                        pool.splice(i, 1); // Remove from pool
-                        break; 
-                    }
-                }
-            }
+/* LOOP EACH SECTION */
+sections.forEach(sectionName => {
+
+    let grid = Array.from({ length: days }, () => new Array(periods).fill("-"));
+
+    /* CREATE POOL */
+    let pool = [];
+
+    depSubjects.forEach(sub => {
+        for (let i = 0; i < (Number(sub.credits) || 0); i++) {
+            pool.push({
+                name: sub.name,
+                staff: sub.staff || "Unknown"
+            });
         }
-        timetableData[sectionName] = grid;
     });
 
-    // 5. Save Results
-    localStorage.setItem("timetableGenerated", "true");
-    localStorage.setItem("timetable_" + selected, JSON.stringify(timetableData));
-    
-    document.getElementById("successMsg").innerText = "✔ Timetable generated successfully";
-    showToast("Timetable Generated Successfully");
+    /* SHUFFLE */
+    pool.sort(() => Math.random() - 0.5);
+
+    /* FILL GRID */
+    for (let d = 0; d < days; d++) {
+
+        let usedToday = new Set();
+
+        for (let p = 0; p < periods; p++) {
+
+            let assigned = false;
+
+            for (let i = 0; i < pool.length; i++) {
+
+                const subject = pool[i];
+
+                const isBusy = staffBusy[d][p].has(subject.staff);
+                const alreadyToday = usedToday.has(subject.name);
+
+                if (!isBusy && !alreadyToday) {
+
+                    grid[d][p] = subject.name;
+
+                    staffBusy[d][p].add(subject.staff);
+                    usedToday.add(subject.name);
+
+                    pool.splice(i, 1);
+
+                    assigned = true;
+                    break;
+                }
+            }
+
+            /* ✅ IF NOTHING FITS → LEAVE EMPTY */
+            if (!assigned) {
+                grid[d][p] = "-";
+            }
+        }
+    }
+
+    timetableData[sectionName] = grid;
+});
+
+/* SAVE */
+localStorage.setItem("timetableGenerated", "true");
+localStorage.setItem("timetable_" + selected, JSON.stringify(timetableData));
+
+document.getElementById("successMsg").innerText = "✔ Timetable generated successfully";
+showToast("Timetable Generated Successfully");
+
 }
 function showToast(message){
 
