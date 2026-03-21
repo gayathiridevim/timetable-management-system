@@ -302,7 +302,10 @@ sections.forEach(section => {
     }
 
     /* CLONE POOL FOR EACH SECTION */
-    let subjectPool = [...masterPool];
+   let subjectPool = [...masterPool];
+
+/* 🔥 SHUFFLE PER SECTION (IMPORTANT) */
+subjectPool.sort(() => Math.random() - 0.5);
 
     for(let d=0; d<days; d++){
         for(let p=0; p<periods; p++){
@@ -315,8 +318,12 @@ sections.forEach(section => {
             /* TRY TO PLACE VALID SUBJECT */
             for(let i=0; i<subjectPool.length; i++){
 
-                let index = (i + sectionIndex) % subjectPool.length;
-                let sub = subjectPool[index];
+    if(subjectPool.length === 0) break; // ✅ FIX
+
+    let index = (i + sectionIndex) % subjectPool.length;
+    let sub = subjectPool[index];
+
+    if(!sub) continue; // ✅ SAFETY
 
                 if(!staffBusy[timeKey].includes(sub.staff)){
 
