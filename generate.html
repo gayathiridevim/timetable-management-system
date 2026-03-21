@@ -361,11 +361,17 @@ subjectPool.sort(() => Math.random() - 0.5);
 localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
 
 console.log("TIMETABLE:", timetableData);
-checkClashes(timetableData, sections);
+console.log("BEFORE CLASH");
 
-showToast("Timetable Generated Successfully");
+try{
+    checkClashes(timetableData, sections);
+}catch(e){
+    console.error("CLASH ERROR:", e);
 }
 
+console.log("AFTER CLASH");
+
+showToast("Timetable Generated Successfully");
 
 
 function showToast(message){
