@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Section Management</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body{
+display:none;
+}
+</style>
+
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
+  authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
+  projectId: "timetablemanagementsyste-45fd9",
+  storageBucket: "timetablemanagementsyste-45fd9.firebasestorage.app",
+  messagingSenderId: "905343636728",
+  appId: "1:905343636728:web:91124de4d8a8160af5d70d"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+firebase.auth().onAuthStateChanged(function(user){
+
+if(user){
+document.body.style.display = "block";
+}
+else{
+window.location.replace("index.html");
+}
+
+});
+
+</script>
+
+<style>
+
+#userEmail{
+word-break: break-all;
+}
+
+/* section blue tags */
+.section-pill{
+background:#e7f0ff;
+color:#1e40af;
+padding:6px 12px;
+border-radius:20px;
+font-size:13px;
+margin-right:6px;
+display:inline-block;
+margin-bottom:6px;
+}
+
+/* grey generated button */
+.generated-btn{
+background:#9ca3af;
+color:white;
+border:none;
+padding:8px 16px;
+border-radius:6px;
+cursor:not-allowed;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="layout">
+
+
+<div class="sidebar">
+
+<div class="sidebar-header">
+<h1 id="logoText">VELS <span id="proBadge"></span></h1>
+<p>Timetable Management System</p>
+</div>
+
+<ul>
+<li><a href="dashboard.html">Dashboard</a></li>
+<li><a href="department.html">Department Setup</a></li>
+<li><a href="subject.html">Subject Management</a></li>
+<li><a href="staff.html">Staff Management</a></li>
+<li><a href="section.html">Section Management</a></li>
+<li><a href="generate.html">Generate Timetable</a></li>
+<li><a href="view.html">View Timetable</a></li>
+<li><a href="guidelines.html">System Guidelines</a></li>
+<li><a href="faculty.html">Staff Timetable</a></li>
+</ul>
+
+<div class="logout-section">
+
+<div class="signed-in">
+<small>Signed in as</small>
+<p id="userEmail"></p>
+</div>
+
+<div class="logout-link" onclick="logout()">⬅ Logout</div>
+
+</div>
+
+</div>
+
+
+
+<div class="content-area">
+
+<div class="top-navbar">
+<div style="display:flex;align-items:center;">
+
+<span>VELS Faculty Scheduling System</span>
+
+
+</div>
+
+</div>
+
+<div class="dashboard-header">
+<h1>Section Management</h1>
+<p>Sections are auto-generated from department configuration</p>
+</div>
+
+<div id="sectionContainer"></div>
+
+</div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+
+
+
+firebase.auth().onAuthStateChanged(function(user){
+
+if(user){
+
+document.body.style.display = "block";
+
+const proUsers = [
+"staff@college.com",
+"hod@college.com",
+"gayathiridevi182005@gmail.com"
+];
+
+if(proUsers.includes(user.email)){
+localStorage.setItem("isProUser","true");
+}
+
+const emailElement = document.getElementById("userEmail");
+
+if(emailElement){
+emailElement.innerText = user.email;
+}
+
+}
+else{
+window.location.replace("index.html");
+}
+
+});
+
+
+function logout(){
+
+firebase.auth().signOut().then(()=>{
+window.location.replace("index.html");
+});
+
+}
+
+
+if(localStorage.getItem("isProUser") === null){
+localStorage.setItem("isProUser","false");
+}
+
+
+
+function showToast(message){
+const toast=document.getElementById("toast");
+toast.innerText=message;
+toast.classList.add("show");
+setTimeout(()=>toast.classList.remove("show"),3000);
+}
+
+
+
+
+function loadSectionCards(){
+
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+const container = document.getElementById("sectionContainer");
+
+container.innerHTML="";
+
+if(departments.length===0){
+
+container.innerHTML=`
+<div class="form-card">
+<p>No departments configured yet.</p>
+</div>
+`;
+
+return;
+
+}
+
+departments.forEach(dep=>{
+
+const key = dep.name+"_sem_"+dep.semester;
+
+
+const savedSections = JSON.parse(localStorage.getItem("sections_"+key));
+
+let sectionHTML="";
+let buttonHTML="";
+
+
+
+if(savedSections && savedSections.length>0){
+
+savedSections.forEach(sec=>{
+sectionHTML+=`<span class="section-pill">${sec}</span>`;
+});
+
+buttonHTML=`<button class="generated-btn">Generated</button>`;
+
+}else{
+
+sectionHTML=`
+<p style="margin-top:10px;color:#666;">
+No sections generated yet. Click Generate above.
+</p>
+`;
+
+buttonHTML=`
+<button class="add-btn"
+onclick="generateSections('${dep.name}','${dep.semester}',${dep.sections})">
+Generate
+</button>
+`;
+
+}
+
+container.innerHTML+=`
+
+<div class="form-card">
+
+<div style="display:flex;justify-content:space-between;align-items:center;">
+
+<div>
+<h3>${dep.name} — Semester ${dep.semester}</h3>
+<p>Configured for ${dep.sections} section(s)</p>
+</div>
+
+${buttonHTML}
+
+</div>
+
+<div style="margin-top:15px;">
+${sectionHTML}
+</div>
+
+</div>
+
+`;
+
+});
+
+}
+
+
+
+
+function generateSections(name,semester,count){
+function generateSections(name,semester,count){
+
+
+const isPro = localStorage.getItem("isProUser") === "true";
+
+if(!isPro && count > 1){
+showToast("Free plan allows only 1 section. Upgrade to Pro.");
+return;
+}
+
+const letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+let sections=[];
+
+for(let i=0;i<count;i++){
+sections.push(`${name}-${letters[i]}`);
+}
+
+const key=name+"_sem_"+semester;
+
+
+
+localStorage.setItem("sections_"+key,JSON.stringify(sections));
+
+showToast("Sections generated");
+
+loadSectionCards();
+
+}
+const letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+let sections=[];
+
+for(let i=0;i<count;i++){
+sections.push(`${name}-${letters[i]}`);
+}
+
+const key=name+"_sem_"+semester;
+
+
+
+localStorage.setItem("sections_"+key,JSON.stringify(sections));
+
+showToast("Sections generated");
+
+loadSectionCards();
+
+}
+
+
+
+
+loadSectionCards();
+
+
+if(localStorage.getItem("isProUser") === null){
+localStorage.setItem("isProUser","false");
+}
+</script>
+<script>
+
+var isPro = localStorage.getItem("isProUser");
+
+if(isPro === "true"){
+
+var logo = document.getElementById("logoText");
+var badge = document.getElementById("proBadge");
+
+if(logo && badge){
+logo.classList.add("pro-user");
+badge.innerText = "PRO";
+}
+
+}
+
+</script>
+</body>
+</html>

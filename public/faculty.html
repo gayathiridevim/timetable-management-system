@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Staff Timetable</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+body{ display:none; }
+
+.empty{
+background:#fafafa;
+color:#ccc;
+}
+
+#userEmail{
+word-break: break-all;
+}
+</style>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
+  authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
+  projectId: "timetablemanagementsyste-45fd9"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+firebase.auth().onAuthStateChanged(function(user){
+
+if(user){
+
+document.body.style.display="block";
+
+/* PRO USERS */
+const proUsers = [
+"staff@college.com",
+"hod@college.com",
+"gayathiridevi182005@gmail.com"
+];
+
+if(proUsers.includes(user.email)){
+localStorage.setItem("isProUser","true");
+}
+
+document.getElementById("userEmail").innerText=user.email;
+
+}
+else{
+window.location.replace("index.html");
+}
+
+});
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+</head>
+
+<body>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+<div class="sidebar-header">
+<h1 id="logoText">VELS <span id="proBadge"></span></h1>
+<p>Timetable Management System</p>
+</div>
+
+<ul>
+<li><a href="dashboard.html">Dashboard</a></li>
+<li><a href="department.html">Department Setup</a></li>
+<li><a href="subject.html">Subject Management</a></li>
+<li><a href="staff.html">Staff Management</a></li>
+<li><a href="section.html">Section Management</a></li>
+<li><a href="generate.html">Generate Timetable</a></li>
+<li><a href="view.html">View Timetable</a></li>
+<li><a href="guidelines.html">System Guidelines</a></li>
+<li><a href="faculty.html">Staff Timetable</a></li>
+</ul>
+
+<div class="logout-section">
+<div class="signed-in">
+<small>Signed in as</small>
+<p id="userEmail"></p>
+</div>
+<div class="logout-link" onclick="logout()">⬅ Logout</div>
+</div>
+
+</div>
+
+<!-- CONTENT -->
+<div class="content-area">
+
+<div class="top-navbar">
+VELS Faculty Scheduling System
+</div>
+
+<div class="dashboard-header">
+<h1>Staff Timetable</h1>
+<p>View individual faculty schedule</p>
+</div>
+
+<div class="form-card">
+
+<h3>Select Staff</h3>
+<select id="staffSelect" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+<option value="">Select Staff</option>
+</select>
+
+<div id="staffContainer" style="margin-top:20px;"></div>
+
+</div>
+
+</div>
+</div>
+
+<script>
+
+/* LOGOUT */
+function logout(){
+firebase.auth().signOut().then(()=>{
+window.location.replace("index.html");
+});
+}
+
+/* LOAD STAFF */
+function loadStaff(){
+
+const staff = JSON.parse(localStorage.getItem("staff")) || [];
+const select = document.getElementById("staffSelect");
+
+select.innerHTML=`<option value="">Select Staff</option>`;
+
+const names=[...new Set(staff.map(s=>s.name))];
+
+names.forEach(n=>{
+let opt=document.createElement("option");
+opt.value=n;
+opt.textContent=n;
+select.appendChild(opt);
+});
+
+}
+
+document.getElementById("staffSelect")
+.addEventListener("change",loadStaffTimetable);
+
+
+/* MAIN LOGIC */
+let originalTables = {};
+
+function loadStaffTimetable(){
+
+const selected = document.getElementById("staffSelect").value;
+const container = document.getElementById("staffContainer");
+
+if(!selected){
+    container.innerHTML="";
+    return;
+}
+
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+
+/* DEFAULT SETTINGS */
+let dept = departments[0] || {};
+let days = Number(dept.days) || 6;
+let periods = Number(dept.periods) || 6;
+
+/* CREATE EMPTY GRID */
+let grid = Array.from({ length: days }, () => new Array(periods).fill("-"));
+
+/* 🔥 LOOP ALL TIMETABLES */
+for(let key in localStorage){
+
+    if(key.startsWith("timetable_")){
+
+        let data = JSON.parse(localStorage.getItem(key));
+
+        for(let section in data){
+
+            let sectionGrid = data[section];
+
+            for(let d = 0; d < sectionGrid.length; d++){
+                for(let p = 0; p < sectionGrid[d].length; p++){
+
+                    let subject = sectionGrid[d][p];
+
+                    if(subject === "-") continue;
+
+                    /* FIND STAFF FOR SUBJECT */
+                    const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+
+                    const found = subjects.find(s => s.name === subject);
+
+                    if(found && found.staff === selected){
+
+                        grid[d][p] = subject + " (" + section + ")";
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* 🔥 BUILD UI */
+const daysArr=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+let html = `
+<div class="form-card">
+<h3>${selected} - Timetable</h3>
+
+<table border="1" style="width:100%;text-align:center;border-collapse:collapse">
+<tr>
+<th>Day</th>
+`;
+
+for(let p=1;p<=periods;p++){
+html += `<th>P${p}</th>`;
+}
+
+html += `</tr>`;
+
+for(let d=0; d<days; d++){
+
+html += `<tr><td><b>${daysArr[d]}</b></td>`;
+
+for(let p=0;p<periods;p++){
+
+if(grid[d][p] === "-"){
+html += `<td class="empty">-</td>`;
+}else{
+html += `<td>${grid[d][p]}</td>`;
+}
+
+}
+
+html += `</tr>`;
+}
+
+html += `</table></div>`;
+
+container.innerHTML = html;
+
+}
+
+
+/* EDIT */
+function editTimetable(section){
+
+const table=document.querySelector(`#table-${section}`);
+originalTables[section]=table.innerHTML;
+
+table.querySelectorAll("td").forEach(cell=>{
+cell.contentEditable=true;
+});
+
+document.getElementById(`controls-${section}`).style.display="inline";
+}
+
+function saveEdit(section){
+
+const table=document.querySelector(`#table-${section}`);
+
+table.querySelectorAll("td").forEach(cell=>{
+cell.contentEditable=false;
+});
+
+document.getElementById(`controls-${section}`).style.display="none";
+}
+
+function cancelEdit(section){
+
+const table=document.querySelector(`#table-${section}`);
+table.innerHTML=originalTables[section];
+
+document.getElementById(`controls-${section}`).style.display="none";
+}
+
+
+/* PDF */
+async function downloadPDF(section){
+
+const timetable=document.querySelector(`#table-${section}`);
+
+const canvas=await html2canvas(timetable);
+
+const imgData=canvas.toDataURL("image/png");
+
+const {jsPDF}=window.jspdf;
+
+const pdf=new jsPDF("landscape","mm","a4");
+
+const width=pdf.internal.pageSize.getWidth()-20;
+const height=canvas.height*width/canvas.width;
+
+pdf.text("Staff Timetable",10,10);
+pdf.addImage(imgData,"PNG",10,20,width,height);
+
+pdf.save("staff_timetable.pdf");
+}
+
+/* INIT */
+loadStaff();
+
+/* PRO BADGE */
+var isPro = localStorage.getItem("isProUser");
+
+if(isPro === "true"){
+
+var logo = document.getElementById("logoText");
+var badge = document.getElementById("proBadge");
+
+if(logo && badge){
+logo.classList.add("pro-user");
+badge.innerText = "PRO";
+}
+
+}
+</script>
+
+</body>
+</html>
