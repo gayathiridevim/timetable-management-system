@@ -197,9 +197,13 @@ for(let key in localStorage){
                     /* FIND STAFF FOR SUBJECT */
                     const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 
-                    const found = subjects.find(s => s.name === subject);
+                    const clean = subject.split("(")[0].trim();
 
-                    if(found && found.staff === selected){
+const found = subjects.find(s => 
+  s.name.trim().toLowerCase() === clean.toLowerCase()
+);
+
+                    if(found && found.staff.toLowerCase() === selected.toLowerCase()){
 
                         grid[d][p] = subject + " (" + section + ")";
                     }
