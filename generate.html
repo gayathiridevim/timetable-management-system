@@ -293,6 +293,9 @@ sections.forEach(section => {
 
     let grid = [];
 
+    /* 🔥 NEW: section index for variation */
+    let sectionIndex = sections.indexOf(section);
+
     /* CREATE EMPTY GRID */
     for(let d=0; d<days; d++){
         grid[d] = new Array(periods).fill("-");
@@ -312,7 +315,8 @@ sections.forEach(section => {
             /* TRY TO PLACE VALID SUBJECT */
             for(let i=0; i<subjectPool.length; i++){
 
-                let sub = subjectPool[i];
+                let index = (i + sectionIndex) % subjectPool.length;
+                let sub = subjectPool[index];
 
                 if(!staffBusy[timeKey].includes(sub.staff)){
 
@@ -320,7 +324,7 @@ sections.forEach(section => {
 
                     staffBusy[timeKey].push(sub.staff);
 
-                    subjectPool.splice(i,1);
+                    subjectPool.splice(index,1);
 
                     placed = true;
                     break;
@@ -334,7 +338,6 @@ sections.forEach(section => {
                 if(sub){
                     grid[d][p] = sub.name;
                 } else {
-                    /* if pool empty, reuse random subject */
                     let randomSub = masterPool[Math.floor(Math.random()*masterPool.length)];
                     grid[d][p] = randomSub.name;
                 }
@@ -350,9 +353,11 @@ sections.forEach(section => {
 /* SAVE */
 localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
 
+console.log("TIMETABLE:", timetableData);
+checkClashes(timetableData, sections);
+
 showToast("Timetable Generated Successfully");
 }
-
 
 
 
@@ -401,6 +406,8 @@ badge.innerText = "PRO";
 }
 
 }
+
+
 
 </script>
 </body>
