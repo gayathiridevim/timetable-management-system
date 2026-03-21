@@ -496,9 +496,14 @@ pdf.addImage(imgData,"PNG",10,25,pageWidth,imgHeight);
 
 /* -------- STAFF ALLOCATION -------- */
 
-const staffData = JSON.parse(localStorage.getItem("staff")) || [];
+const allStaff = JSON.parse(localStorage.getItem("staff")) || [];
 
 const secLetter = section.split("-")[1];
+const deptName = section.split("-").slice(0, -1).join("-");
+
+const staffData = allStaff.filter(staff => {
+    return staff.section === secLetter && staff.dept === deptName;
+});
 
 let y = imgHeight + 35;
 
@@ -511,13 +516,9 @@ pdf.setFontSize(11);
 
 staffData.forEach(staff=>{
 
-if(staff.section === secLetter){
+    pdf.text(`${staff.subject} - ${staff.name}`,10,y);
 
-pdf.text(`${staff.subject} - ${staff.name}`,10,y);
-
-y += 6;
-
-}
+    y += 6;
 
 });
 
