@@ -502,7 +502,7 @@ const secLetter = section.split("-")[1];
 const deptName = section.split("-").slice(0, -1).join("-");
 
 const staffData = allStaff.filter(staff => {
-    return staff.section === secLetter && staff.dept === deptName;
+    return staff.dept.trim().toLowerCase() === deptName.trim().toLowerCase();
 });
 
 let y = imgHeight + 35;
