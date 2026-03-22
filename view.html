@@ -328,19 +328,36 @@ let row=grid[i]||[];
 
 for(let j=0;j<periods;j++){
 
-let value=row[j]||"";
+let cellData = row[j] || "";
 
-let subjects=JSON.parse(localStorage.getItem("subjects"))||[];
+let displayText = "";
+let subjectName = "";
+let staffName = "";
 
-let typeLabel="";
+// ✅ HANDLE BOTH FORMATS (IMPORTANT)
+if(typeof cellData === "object"){
+    subjectName = cellData.subject || "";
+    staffName = cellData.staff || "";
+} else {
+    subjectName = cellData;
+}
+
+// GET SUBJECT TYPE
+let subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+let typeLabel = "";
 
 subjects.forEach(sub=>{
-if(sub.name===value){
-typeLabel=sub.type==="Lab"?" (L)":" (T)";
-}
+    if(sub.name === subjectName){
+        typeLabel = sub.type === "Lab" ? " (L)" : " (T)";
+    }
 });
 
-tableHTML+=`<td contenteditable="false">${value}${typeLabel}</td>`;
+// FINAL DISPLAY
+displayText = subjectName 
+    ? `${subjectName}${typeLabel}${staffName ? " - " + staffName : ""}`
+    : "";
+
+tableHTML += `<td contenteditable="false">${displayText}</td>`;
 
 if(j+1===lunchAfter){
 tableHTML+=``;
