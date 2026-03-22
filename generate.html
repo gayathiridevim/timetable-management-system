@@ -233,9 +233,6 @@ box.innerHTML = `
 
 function generateTimetable(){
 
-    const days = ["Mon","Tue","Wed","Thu","Fri"];
-    const hours = [1,2,3,4,5,6];
-
     const selectedDept = document.getElementById("departmentSelect").value;
     if(!selectedDept){
         showToast("Select department");
@@ -245,84 +242,63 @@ function generateTimetable(){
     const sections = JSON.parse(localStorage.getItem("sections")) || [];
     const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 
-    // Filter only this department
     const deptSections = sections.filter(s => s.department === selectedDept);
     const deptSubjects = subjects.filter(s => s.department === selectedDept);
 
-    // 🔥 GLOBAL STAFF TRACKER (IMPORTANT)
-    let staffBusy = {}; 
-    // format: { "Ravi": ["Mon-1","Tue-3"] }
+    const days = 5;
+    const periods = 6;
 
-    // FINAL TIMETABLE
+    let staffBusy = {}; // 🔥 GLOBAL STAFF TRACK
+
     let timetable = {};
 
-    // 🔁 FOR EACH SECTION
+    let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
+
     deptSections.forEach(section => {
 
-        let grid = {};
+        // ✅ CORRECT GRID FORMAT (IMPORTANT)
+        let grid = Array.from({length: days}, () => Array(periods).fill(""));
 
-        // Initialize empty grid
-        days.forEach(day => {
-            hours.forEach(hr => {
-                grid[`${day}-${hr}`] = null;
-            });
-        });
-
-        // 🔁 SUBJECT ALLOCATION
         deptSubjects.forEach(sub => {
 
             let count = sub.hoursPerWeek;
             let attempts = 0;
 
-            while(count > 0 && attempts < 100){
+            while(count > 0 && attempts < 200){
 
                 attempts++;
 
-                let day = days[Math.floor(Math.random()*days.length)];
-                let hr = hours[Math.floor(Math.random()*hours.length)];
-                let slot = `${day}-${hr}`;
+                let d = Math.floor(Math.random() * days);
+                let p = Math.floor(Math.random() * periods);
 
+                let slot = `${d}-${p}`;
                 let staff = sub.staff;
 
-                // initialize staff
                 if(!staffBusy[staff]) staffBusy[staff] = [];
 
-                // ✅ CONDITIONS (CLASH CHECK)
+                // ✅ CLASH FREE LOGIC
                 if(
-                    !grid[slot] && // section free
-                    !staffBusy[staff].includes(slot) // staff free
+                    grid[d][p] === "" &&
+                    !staffBusy[staff].includes(slot)
                 ){
-                    grid[slot] = {
-                        subject: sub.name,
-                        staff: staff
-                    };
+                    grid[d][p] = sub.name; // only subject (view expects this)
 
                     staffBusy[staff].push(slot);
+
                     count--;
                 }
             }
 
-            // ⚠️ If cannot place fully
-            if(count > 0){
-                console.warn(`Could not fully assign ${sub.name} for ${section.name}`);
-            }
-
         });
 
-       let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
-
-timetable[`${cleanKey}-${section.name}`] = grid;
+        timetable[`${cleanKey}-${section.name}`] = grid;
 
     });
 
-    // SAVE
-   let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
-
-localStorage.setItem(`timetable_${cleanKey}`, JSON.stringify(timetable));
+    localStorage.setItem(`timetable_${cleanKey}`, JSON.stringify(timetable));
 
     showToast("Timetable generated successfully ✅");
 }
-
 
 
 function showToast(message){
