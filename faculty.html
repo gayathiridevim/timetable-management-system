@@ -113,7 +113,7 @@ VELS Faculty Scheduling System
 <select id="staffSelect" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
 <option value="">Select Staff</option>
 </select>
-<button onclick="loadStaffTimetable()" 
+<button onclick="loadStaffTimetable()"
 style="margin-top:10px;padding:8px 14px;border:none;background:#3b82f6;color:white;border-radius:6px;">
 Generate
 </button>
@@ -211,7 +211,7 @@ for(let key in localStorage){
 
                     let subject = sectionGrid[d][p];
 
-                    if(subject === "-") continue;
+if(!subject || subject === "-") continue;
 
                     /* FIND STAFF FOR SUBJECT */
                     const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
@@ -349,7 +349,7 @@ badge.innerText = "PRO";
 }
 
 }
-</script>
 
+</script>
 </body>
 </html>
