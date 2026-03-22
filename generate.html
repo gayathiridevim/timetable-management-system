@@ -266,7 +266,7 @@ function generateTimetable(){
     sections.forEach(section => {
 
         let grid = Array.from({length: days}, () => Array(periods).fill(""));
-
+subjectQueue.sort(() => Math.random() - 0.5);
         let subjectQueue = [];
 
         // 🔥 create subject queue
@@ -294,7 +294,11 @@ function generateTimetable(){
 
                     if(!staffBusy[staff]) staffBusy[staff] = [];
 
-                    if(!staffBusy[staff].includes(slot)){
+                    if(
+    !staffBusy[staff].includes(slot) &&
+    !(p > 0 && grid[d][p-1] === subject) &&   // ❌ no consecutive same subject
+    !(d > 0 && grid[d-1][p] === subject)      // ❌ no vertical repeat
+){
 
                         grid[d][p] = subject;
                         staffBusy[staff].push(slot);
