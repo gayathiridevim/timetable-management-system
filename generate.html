@@ -296,26 +296,51 @@ function generateTimetable(){
 
             while(count > 0 && attempts < 200){
 
-                attempts++;
+    attempts++;
 
-                let d = Math.floor(Math.random()*days);
-                let p = Math.floor(Math.random()*periods);
+    let d = Math.floor(Math.random()*days);
+    let p = Math.floor(Math.random()*periods);
 
-                let slot = `${d}-${p}`;
+    let slot = `${d}-${p}`;
+    let staff = staffName;
 
-                if(!staffBusy[staffName]) staffBusy[staffName] = [];
+    if(!staffBusy[staff]) staffBusy[staff] = [];
 
-                if(
-                    grid[d][p] === "" &&
-                    !staffBusy[staffName].includes(slot)
-                ){
-                    grid[d][p] = sub.name; // view expects string
+    if(
+        grid[d][p] === "" &&
+        !staffBusy[staff].includes(slot)
+    ){
+        grid[d][p] = sub.name;
+        staffBusy[staff].push(slot);
+        count--;
+    }
+}
 
-                    staffBusy[staffName].push(slot);
+/* 🔥 FORCE FILL IF STILL LEFT */
+if(count > 0){
 
-                    count--;
-                }
+    for(let d=0; d<days; d++){
+        for(let p=0; p<periods; p++){
+
+            let slot = `${d}-${p}`;
+            let staff = staffName;
+
+            if(
+                grid[d][p] === "" &&
+                !staffBusy[staff].includes(slot)
+            ){
+                grid[d][p] = sub.name;
+                staffBusy[staff].push(slot);
+                count--;
+
+                if(count === 0) break;
             }
+
+        }
+        if(count === 0) break;
+    }
+
+}
 
         });
 
