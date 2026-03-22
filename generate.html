@@ -240,29 +240,26 @@ function generateTimetable(){
         return;
     }
 
+    // ✅ GET SECTIONS CORRECTLY
     const sectionsKey = "sections_" + selectedDept;
-const rawSections = JSON.parse(localStorage.getItem(sectionsKey)) || [];
+    const rawSections = JSON.parse(localStorage.getItem(sectionsKey)) || [];
 
-const sections = rawSections.map(sec => ({
-    name: sec.split("-")[1],
-    department: sec.split("-")[0]
-}));
-    const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+    const sections = rawSections.map(sec => ({
+        name: sec.split("-")[1],
+        department: sec.split("-")[0]
+    }));
 
-    // 🔥 SAFE FILTER (IMPORTANT FIX)
-    const deptSections = sections.filter(s => 
-        selectedDept.toLowerCase().includes((s.department || "").toLowerCase())
+    // ✅ GET SUBJECTS (FIXED FIELD NAMES)
+    const allSubjects = JSON.parse(localStorage.getItem("subjects")) || [];
+
+    const deptSubjects = allSubjects.filter(s =>
+        selectedDept.toLowerCase().includes(s.dept.toLowerCase())
     );
 
-    const deptSubjects = subjects.filter(s => 
-        selectedDept.toLowerCase().includes((s.department || "").toLowerCase())
-    );
+    // ✅ GET STAFF (IMPORTANT)
+    const staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
-    // ❗ DEBUG (REMOVE LATER)
-    console.log("Sections:", deptSections);
-    console.log("Subjects:", deptSubjects);
-
-    if(deptSections.length === 0){
+    if(sections.length === 0){
         showToast("No sections found ❌");
         return;
     }
@@ -280,14 +277,22 @@ const sections = rawSections.map(sec => ({
 
     let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
 
-    deptSections.forEach(section => {
+    sections.forEach(section => {
 
         let grid = Array.from({length: days}, () => Array(periods).fill(""));
 
         deptSubjects.forEach(sub => {
 
-            let count = sub.hoursPerWeek;
+            let count = Number(sub.credits); // ✅ FIXED
             let attempts = 0;
+
+            // 🔥 FIND STAFF FOR SUBJECT
+            let staffForSubject = staffList.find(s =>
+                s.subject === sub.name &&
+                s.dept.toLowerCase() === sub.dept.toLowerCase()
+            );
+
+            let staffName = staffForSubject ? staffForSubject.name : "Staff";
 
             while(count > 0 && attempts < 200){
 
@@ -297,17 +302,17 @@ const sections = rawSections.map(sec => ({
                 let p = Math.floor(Math.random()*periods);
 
                 let slot = `${d}-${p}`;
-                let staff = sub.staff;
 
-                if(!staffBusy[staff]) staffBusy[staff] = [];
+                if(!staffBusy[staffName]) staffBusy[staffName] = [];
 
                 if(
                     grid[d][p] === "" &&
-                    !staffBusy[staff].includes(slot)
+                    !staffBusy[staffName].includes(slot)
                 ){
-                    grid[d][p] = sub.name;
+                    grid[d][p] = sub.name; // view expects string
 
-                    staffBusy[staff].push(slot);
+                    staffBusy[staffName].push(slot);
+
                     count--;
                 }
             }
