@@ -255,8 +255,16 @@ function generateTimetable(){
         selectedDept.toLowerCase().includes(s.dept.toLowerCase())
     );
 
-    const days = 5;
-    const periods = 6;
+// 🔥 GET DEPARTMENT DATA (ADD THIS HERE)
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
+
+let deptData = departments.find(d =>
+    (d.name + "_sem_" + d.semester) === selectedDept
+);
+
+// 🔥 REPLACE STATIC VALUES
+const days = deptData ? Number(deptData.days) : 5;
+const periods = deptData ? Number(deptData.periods) : 6;
 
     let timetable = {};
     let staffBusy = {};
@@ -381,8 +389,8 @@ function fixAllClashes(timetable){
 
     let staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
-    let days = 5;
-    let periods = 6;
+  let days = timetable[Object.keys(timetable)[0]].length;
+let periods = timetable[Object.keys(timetable)[0]][0].length;
 
     let changed = true;
 
