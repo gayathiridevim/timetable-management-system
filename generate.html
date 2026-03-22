@@ -309,12 +309,16 @@ function generateTimetable(){
 
         });
 
-        timetable[section.name] = grid;
+       let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
+
+timetable[`${cleanKey}-${section.name}`] = grid;
 
     });
 
     // SAVE
-    localStorage.setItem("timetable", JSON.stringify(timetable));
+   let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
+
+localStorage.setItem(`timetable_${cleanKey}`, JSON.stringify(timetable));
 
     showToast("Timetable generated successfully ✅");
 }
