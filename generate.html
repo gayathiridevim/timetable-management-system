@@ -242,8 +242,13 @@ function generateTimetable(){
     const sections = JSON.parse(localStorage.getItem("sections")) || [];
     const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 
-    const deptSections = sections.filter(s => s.department === selectedDept);
-    const deptSubjects = subjects.filter(s => s.department === selectedDept);
+    const deptSections = sections.filter(s => 
+    selectedDept.toLowerCase().includes(s.department.toLowerCase())
+);
+
+const deptSubjects = subjects.filter(s => 
+    selectedDept.toLowerCase().includes(s.department.toLowerCase())
+);
 
     const days = 5;
     const periods = 6;
