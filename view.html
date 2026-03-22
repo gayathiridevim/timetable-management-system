@@ -594,7 +594,68 @@ badge.innerText = "PRO";
 }
 
 }
+function debugClash(){
 
+    let staffList = JSON.parse(localStorage.getItem("staff")) || [];
+    let slotMap = {};
+
+    for(let key in localStorage){
+
+        if(key.startsWith("timetable_")){
+
+            let t = JSON.parse(localStorage.getItem(key));
+
+            for(let sec in t){
+
+                let grid = t[sec];
+
+                for(let d=0; d<grid.length; d++){
+                    for(let p=0; p<grid[d].length; p++){
+
+                        let subject = grid[d][p];
+                        if(!subject) continue;
+
+                        let staffObj = staffList.find(s => s.subject === subject);
+                        if(!staffObj) continue;
+
+                        let staff = staffObj.name;
+                        let slot = `${d}-${p}`;
+
+                        if(!slotMap[slot]) slotMap[slot] = [];
+
+                        slotMap[slot].push({
+                            staff,
+                            section: sec,
+                            subject
+                        });
+
+                    }
+                }
+
+            }
+
+        }
+
+    }
+
+    console.log("===== CLASH REPORT =====");
+
+    for(let slot in slotMap){
+
+        let arr = slotMap[slot];
+
+        let names = arr.map(x => x.staff);
+        let unique = new Set(names);
+
+        if(unique.size !== names.length){
+
+            console.log("❌ CLASH at slot:", slot);
+            console.table(arr);
+        }
+
+    }
+
+}
 </script>
 </body>
 </html>
