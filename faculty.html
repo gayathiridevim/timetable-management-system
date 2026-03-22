@@ -212,22 +212,22 @@ for(let key in localStorage){
                     let subject = sectionGrid[d][p];
 
 if(!subject || subject === "-") continue;
+const staffList = JSON.parse(localStorage.getItem("staff")) || []
 
-                    /* FIND STAFF FOR SUBJECT */
-                    const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-
-                    const clean = subject.trim();
-const found = subjects.find(s => 
-  s.name.trim().toLowerCase() === subject.trim().toLowerCase()
+const staffObj = staffList.find(s =>
+    s.subject &&
+    subject &&
+    s.subject.trim().toLowerCase() === subject.trim().toLowerCase()
 );
 
-                    if(
-found &&
-found.staff.trim().toLowerCase() === selected.trim().toLowerCase()
+if(
+    staffObj &&
+    staffObj.name &&
+    selected &&
+    staffObj.name.trim().toLowerCase() === selected.trim().toLowerCase()
 ){
-
-                        grid[d][p] = subject + " (" + section + ")";
-                    }
+    grid[d][p] = subject + " (" + section + ")";
+}
                 }
             }
         }
