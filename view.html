@@ -328,36 +328,19 @@ let row=grid[i]||[];
 
 for(let j=0;j<periods;j++){
 
-let cellData = row[j] || "";
+let value=row[j]||"";
 
-let displayText = "";
-let subjectName = "";
-let staffName = "";
+let subjects=JSON.parse(localStorage.getItem("subjects"))||[];
 
-// ✅ HANDLE BOTH FORMATS (IMPORTANT)
-if(typeof cellData === "object"){
-    subjectName = cellData.subject || "";
-    staffName = cellData.staff || "";
-} else {
-    subjectName = cellData;
-}
-
-// GET SUBJECT TYPE
-let subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-let typeLabel = "";
+let typeLabel="";
 
 subjects.forEach(sub=>{
-    if(sub.name === subjectName){
-        typeLabel = sub.type === "Lab" ? " (L)" : " (T)";
-    }
+if(sub.name===value){
+typeLabel=sub.type==="Lab"?" (L)":" (T)";
+}
 });
 
-// FINAL DISPLAY
-displayText = subjectName 
-    ? `${subjectName}${typeLabel}${staffName ? " - " + staffName : ""}`
-    : "";
-
-tableHTML += `<td contenteditable="false">${displayText}</td>`;
+tableHTML+=`<td contenteditable="false">${value}${typeLabel}</td>`;
 
 if(j+1===lunchAfter){
 tableHTML+=``;
@@ -395,45 +378,62 @@ detectStaffClash();
 
 function detectStaffClash(){
 
-let staff=JSON.parse(localStorage.getItem("staff"))||[];
+    let staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
-let clash=false;
+    let slotMap = {}; 
+    // slotMap["0-1"] = ["Ravi","Ravi"]
 
-staff.forEach(s=>{
+    for(let key in localStorage){
 
-let count=0;
+        if(key.startsWith("timetable_")){
 
-for(let key in localStorage){
+            let t = JSON.parse(localStorage.getItem(key));
 
-if(key.startsWith("timetable_")){
+            for(let section in t){
 
-let t=JSON.parse(localStorage.getItem(key));
+                let grid = t[section];
 
-for(let sec in t){
+                for(let d=0; d<grid.length; d++){
+                    for(let p=0; p<grid[d].length; p++){
 
-let grid=t[sec];
+                        let subject = grid[d][p];
+                        if(!subject) continue;
 
-grid.forEach(day=>{
-day.forEach(sub=>{
-if(sub===s.subject) count++;
-});
-});
+                        // 🔥 find staff for subject
+                        let staffObj = staffList.find(s => s.subject === subject);
 
-}
+                        if(!staffObj) continue;
 
-}
+                        let staffName = staffObj.name;
 
-}
+                        let slot = `${d}-${p}`;
 
-if(count>30){
-clash=true;
-}
+                        if(!slotMap[slot]) slotMap[slot] = [];
 
-});
+                        slotMap[slot].push(staffName);
 
-if(clash){
-showToast("⚠ Possible Staff Clash Detected");
-}
+                    }
+                }
+
+            }
+
+        }
+
+    }
+
+    // 🔥 CHECK DUPLICATES
+    for(let slot in slotMap){
+
+        let arr = slotMap[slot];
+
+        let unique = new Set(arr);
+
+        if(unique.size !== arr.length){
+            showToast("⚠ Staff Clash Detected!");
+            return;
+        }
+
+    }
 
 }
 

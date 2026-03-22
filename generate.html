@@ -240,7 +240,6 @@ function generateTimetable(){
         return;
     }
 
-    // ✅ GET SECTIONS CORRECTLY
     const sectionsKey = "sections_" + selectedDept;
     const rawSections = JSON.parse(localStorage.getItem(sectionsKey)) || [];
 
@@ -249,31 +248,18 @@ function generateTimetable(){
         department: sec.split("-")[0]
     }));
 
-    // ✅ GET SUBJECTS (FIXED FIELD NAMES)
-    const allSubjects = JSON.parse(localStorage.getItem("subjects")) || [];
-
-    const deptSubjects = allSubjects.filter(s =>
-        selectedDept.toLowerCase().includes(s.dept.toLowerCase())
-    );
-
-    // ✅ GET STAFF (IMPORTANT)
+    const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
     const staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
-    if(sections.length === 0){
-        showToast("No sections found ❌");
-        return;
-    }
-
-    if(deptSubjects.length === 0){
-        showToast("No subjects found ❌");
-        return;
-    }
+    const deptSubjects = subjects.filter(s =>
+        selectedDept.toLowerCase().includes(s.dept.toLowerCase())
+    );
 
     const days = 5;
     const periods = 6;
 
-    let staffBusy = {};
     let timetable = {};
+    let staffBusy = {};
 
     let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
 
@@ -281,87 +267,54 @@ function generateTimetable(){
 
         let grid = Array.from({length: days}, () => Array(periods).fill(""));
 
-        deptSubjects.forEach(sub => {
+        let subjectQueue = [];
 
-            let count = Number(sub.credits); // ✅ FIXED
-            let attempts = 0;
-
-            // 🔥 FIND STAFF FOR SUBJECT
-            let staffForSubject = staffList.find(s =>
-                s.subject === sub.name &&
-                s.dept.toLowerCase() === sub.dept.toLowerCase()
-            );
-
-            let staffName = staffForSubject ? staffForSubject.name : "Staff";
-
-            while(count > 0 && attempts < 200){
-
-    attempts++;
-
-    let d = Math.floor(Math.random()*days);
-    let p = Math.floor(Math.random()*periods);
-
-    let slot = `${d}-${p}`;
-    let staff = staffName;
-
-    if(!staffBusy[staff]) staffBusy[staff] = [];
-
-    if(
-        grid[d][p] === "" &&
-        !staffBusy[staff].includes(slot)
-    ){
-        grid[d][p] = sub.name;
-        staffBusy[staff].push(slot);
-        count--;
-    }
-}
-
-/* 🔥 FORCE FILL IF STILL LEFT */
-if(count > 0){
-
-    // ✅ First try: no clash
-    for(let d=0; d<days; d++){
-        for(let p=0; p<periods; p++){
-
-            let slot = `${d}-${p}`;
-
-            if(
-                grid[d][p] === "" &&
-                !staffBusy[staffName].includes(slot)
-            ){
-                grid[d][p] = sub.name;
-                staffBusy[staffName].push(slot);
-                count--;
-
-                if(count === 0) break;
+        // 🔥 create subject queue
+        deptSubjects.forEach(sub=>{
+            for(let i=0;i<sub.credits;i++){
+                subjectQueue.push(sub.name);
             }
+        });
 
-        }
-        if(count === 0) break;
-    }
-
-    // 🔥 FINAL FORCE (ignore staff clash)
-    if(count > 0){
+        let index = 0;
 
         for(let d=0; d<days; d++){
             for(let p=0; p<periods; p++){
 
-                if(grid[d][p] === ""){
-                    grid[d][p] = sub.name;
-                    count--;
+                let attempts = 0;
 
-                    if(count === 0) break;
+                while(attempts < subjectQueue.length){
+
+                    let subject = subjectQueue[index % subjectQueue.length];
+
+                    let staffObj = staffList.find(s => s.subject === subject);
+                    let staff = staffObj ? staffObj.name : "Staff";
+
+                    let slot = `${d}-${p}`;
+
+                    if(!staffBusy[staff]) staffBusy[staff] = [];
+
+                    if(!staffBusy[staff].includes(slot)){
+
+                        grid[d][p] = subject;
+                        staffBusy[staff].push(slot);
+
+                        index++;
+                        break;
+                    }
+
+                    index++;
+                    attempts++;
+                }
+
+                // fallback (rare)
+                if(grid[d][p] === ""){
+                    grid[d][p] = subjectQueue[index % subjectQueue.length];
+                    index++;
                 }
 
             }
-            if(count === 0) break;
         }
-
-    }
-
-}
-
-        });
 
         timetable[`${cleanKey}-${section.name}`] = grid;
 
