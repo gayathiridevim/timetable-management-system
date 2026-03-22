@@ -12,29 +12,17 @@ background:#fafafa;
 color:#ccc;
 }
 
-.generate-btn{
-margin-top:10px;
-padding:10px 16px;
-border:none;
-background:#3b82f6;
-color:white;
-border-radius:8px;
-cursor:pointer;
-font-weight:600;
+#userEmail{
+word-break: break-all;
 }
 </style>
 
-<!-- PDF LIBS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSy...",
+  apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
   authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
   projectId: "timetablemanagementsyste-45fd9"
 };
@@ -42,14 +30,34 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 firebase.auth().onAuthStateChanged(function(user){
+
 if(user){
+
 document.body.style.display="block";
+
+/* PRO USERS */
+const proUsers = [
+"staff@college.com",
+"hod@college.com",
+"gayathiridevi182005@gmail.com"
+];
+
+if(proUsers.includes(user.email)){
+localStorage.setItem("isProUser","true");
+}
+
 document.getElementById("userEmail").innerText=user.email;
-}else{
+
+}
+else{
 window.location.replace("index.html");
 }
+
 });
 </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 </head>
 
@@ -59,8 +67,9 @@ window.location.replace("index.html");
 
 <!-- SIDEBAR -->
 <div class="sidebar">
+
 <div class="sidebar-header">
-<h1>VELS</h1>
+<h1 id="logoText">VELS <span id="proBadge"></span></h1>
 <p>Timetable Management System</p>
 </div>
 
@@ -72,13 +81,18 @@ window.location.replace("index.html");
 <li><a href="section.html">Section Management</a></li>
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
+<li><a href="guidelines.html">System Guidelines</a></li>
 <li><a href="faculty.html">Staff Timetable</a></li>
 </ul>
 
-<div style="padding:10px;">
+<div class="logout-section">
+<div class="signed-in">
 <small>Signed in as</small>
 <p id="userEmail"></p>
 </div>
+<div class="logout-link" onclick="logout()">⬅ Logout</div>
+</div>
+
 </div>
 
 <!-- CONTENT -->
@@ -96,13 +110,13 @@ VELS Faculty Scheduling System
 <div class="form-card">
 
 <h3>Select Staff</h3>
-
-<select id="staffSelect" style="width:100%; padding:10px;">
+<select id="staffSelect" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
 <option value="">Select Staff</option>
 </select>
-
-<button class="generate-btn" onclick="loadStaffTimetable()">Generate</button>
-
+<button onclick="loadStaffTimetable()" 
+style="margin-top:10px;padding:8px 14px;border:none;background:#3b82f6;color:white;border-radius:6px;">
+Generate
+</button>
 <div id="staffContainer" style="margin-top:20px;"></div>
 
 </div>
@@ -112,10 +126,20 @@ VELS Faculty Scheduling System
 
 <script>
 
+/* LOGOUT */
+function logout(){
+firebase.auth().signOut().then(()=>{
+window.location.replace("index.html");
+});
+}
+
 /* LOAD STAFF */
 function loadStaff(){
+
 const staff = JSON.parse(localStorage.getItem("staff")) || [];
 const select = document.getElementById("staffSelect");
+
+select.innerHTML=`<option value="">Select Staff</option>`;
 
 const names=[...new Set(staff.map(s=>s.name))];
 
@@ -125,168 +149,170 @@ opt.value=n;
 opt.textContent=n;
 select.appendChild(opt);
 });
+
 }
 
+
 /* MAIN LOGIC */
+let originalTables = {};
+
 function loadStaffTimetable(){
 
 const selected = document.getElementById("staffSelect").value;
 const container = document.getElementById("staffContainer");
 
 if(!selected){
-container.innerHTML="";
-return;
+    container.innerHTML="";
+    return;
 }
 
-const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+const departments = JSON.parse(localStorage.getItem("departments")) || [];
 
-let maxDays=0;
-let maxPeriods=0;
+/* DEFAULT SETTINGS */
+let maxDays = 0;
+let maxPeriods = 0;
 
-/* FIND GRID SIZE */
-for(let key in localStorage){
-if(key.startsWith("timetable_")){
-let data=JSON.parse(localStorage.getItem(key));
-for(let sec in data){
-maxDays=Math.max(maxDays,data[sec].length);
-maxPeriods=Math.max(maxPeriods,data[sec][0].length);
-}
-}
-}
-
-/* CREATE GRID */
-let grid=Array.from({length:maxDays},()=>Array(maxPeriods).fill("-"));
-
-/* FILL GRID */
+/* FIND ACTUAL GRID SIZE FROM GENERATED TIMETABLE */
 for(let key in localStorage){
 
 if(key.startsWith("timetable_")){
 
-let data=JSON.parse(localStorage.getItem(key));
+let data = JSON.parse(localStorage.getItem(key));
 
-for(let sec in data){
+for(let section in data){
 
-let g=data[sec];
+maxDays = Math.max(maxDays, data[section].length);
+maxPeriods = Math.max(maxPeriods, data[section][0].length);
 
-for(let d=0;d<g.length;d++){
-for(let p=0;p<g[d].length;p++){
-
-let sub=g[d][p];
-if(sub==="-"||!sub) continue;
-
-let clean=sub.split("(")[0].trim();
-
-let found=subjects.find(s=>s.name.toLowerCase()===clean.toLowerCase());
-
-if(found && found.staff.toLowerCase()===selected.toLowerCase()){
-grid[d][p]=sub+" ("+sec+")";
 }
 
 }
 }
-}
-}
+
+/* CREATE GRID BASED ON REAL DATA */
+let days = maxDays;
+let periods = maxPeriods;
+
+let grid = Array.from({ length: days }, () => new Array(periods).fill("-"));
+
+/* 🔥 LOOP ALL TIMETABLES */
+for(let key in localStorage){
+
+    if(key.startsWith("timetable_")){
+
+        let data = JSON.parse(localStorage.getItem(key));
+
+        for(let section in data){
+
+            let sectionGrid = data[section];
+
+            for(let d = 0; d < sectionGrid.length; d++){
+                for(let p = 0; p < sectionGrid[d].length; p++){
+
+                    let subject = sectionGrid[d][p];
+
+                    if(subject === "-") continue;
+
+                    /* FIND STAFF FOR SUBJECT */
+                    const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+
+                    const clean = subject.split("(")[0].trim();
+
+const found = subjects.find(s => 
+  s.name.trim().toLowerCase() === clean.toLowerCase()
+);
+
+                    if(found && found.staff.toLowerCase() === selected.toLowerCase()){
+
+                        grid[d][p] = subject + " (" + section + ")";
+                    }
+                }
+            }
+        }
+    }
 }
 
-/* BUILD TABLE */
-let days=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+/* 🔥 BUILD UI */
+const daysArr=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
-let html=`
+let html = `
 <div class="form-card">
-<div style="display:flex;justify-content:space-between;align-items:center">
 <h3>${selected} - Timetable</h3>
 
-<div>
-<button onclick="editStaffTable()" id="editBtn" style="background:#3498db;color:white;border:none;padding:6px 10px;border-radius:6px;">Edit</button>
-
-<button onclick="saveStaffTable()" id="saveBtn" style="display:none;background:#22c55e;color:white;border:none;padding:6px 10px;border-radius:6px;">✔</button>
-
-<button onclick="cancelStaffEdit()" id="cancelBtn" style="display:none;background:#ef4444;color:white;border:none;padding:6px 10px;border-radius:6px;">✖</button>
-
-<button onclick="downloadStaffPDF('${selected}')" style="background:#34495e;color:white;border:none;padding:6px 10px;border-radius:6px;">Download PDF</button>
-</div>
-</div>
-
-<table id="staffTable" border="1" style="width:100%;text-align:center;border-collapse:collapse">
+<table border="1" style="width:100%;text-align:center;border-collapse:collapse">
 <tr>
 <th>Day</th>
 `;
 
-for(let i=1;i<=maxPeriods;i++){
-html+=`<th>P${i}</th>`;
+for(let p=1;p<=periods;p++){
+html += `<th>P${p}</th>`;
 }
 
-html+=`</tr>`;
+html += `</tr>`;
 
-for(let d=0;d<maxDays;d++){
-html+=`<tr><td><b>${days[d]}</b></td>`;
+for(let d=0; d<days; d++){
 
-for(let p=0;p<maxPeriods;p++){
-html+=`<td>${grid[d][p]}</td>`;
+html += `<tr><td><b>${daysArr[d]}</b></td>`;
+
+for(let p=0;p<periods;p++){
+
+if(grid[d][p] === "-"){
+html += `<td class="empty">-</td>`;
+}else{
+html += `<td>${grid[d][p]}</td>`;
 }
 
-html+=`</tr>`;
 }
 
-html+=`</table></div>`;
+html += `</tr>`;
+}
 
-container.innerHTML=html;
+html += `</table></div>`;
+
+container.innerHTML = html;
 
 }
 
-/* EDIT SYSTEM */
-let originalTable="";
 
-function editStaffTable(){
+/* EDIT */
+function editTimetable(section){
 
-const table=document.getElementById("staffTable");
-
-originalTable = table.innerHTML;
+const table=document.querySelector(`#table-${section}`);
+originalTables[section]=table.innerHTML;
 
 table.querySelectorAll("td").forEach(cell=>{
 cell.contentEditable=true;
-cell.style.background="#fff7ed";
 });
 
-document.getElementById("editBtn").style.display="none";
-document.getElementById("saveBtn").style.display="inline";
-document.getElementById("cancelBtn").style.display="inline";
-
+document.getElementById(`controls-${section}`).style.display="inline";
 }
 
-function saveStaffTable(){
+function saveEdit(section){
 
-const table=document.getElementById("staffTable");
+const table=document.querySelector(`#table-${section}`);
 
 table.querySelectorAll("td").forEach(cell=>{
 cell.contentEditable=false;
-cell.style.background="";
 });
 
-document.getElementById("editBtn").style.display="inline";
-document.getElementById("saveBtn").style.display="none";
-document.getElementById("cancelBtn").style.display="none";
-
+document.getElementById(`controls-${section}`).style.display="none";
 }
 
-function cancelStaffEdit(){
+function cancelEdit(section){
 
-const table=document.getElementById("staffTable");
+const table=document.querySelector(`#table-${section}`);
+table.innerHTML=originalTables[section];
 
-table.innerHTML = originalTable;
-
-document.getElementById("editBtn").style.display="inline";
-document.getElementById("saveBtn").style.display="none";
-document.getElementById("cancelBtn").style.display="none";
-
+document.getElementById(`controls-${section}`).style.display="none";
 }
+
 
 /* PDF */
-async function downloadStaffPDF(name){
+async function downloadPDF(section){
 
-const table=document.getElementById("staffTable");
+const timetable=document.querySelector(`#table-${section}`);
 
-const canvas=await html2canvas(table);
+const canvas=await html2canvas(timetable);
 
 const imgData=canvas.toDataURL("image/png");
 
@@ -297,16 +323,29 @@ const pdf=new jsPDF("landscape","mm","a4");
 const width=pdf.internal.pageSize.getWidth()-20;
 const height=canvas.height*width/canvas.width;
 
-pdf.text(name+" - Staff Timetable",10,10);
-
+pdf.text("Staff Timetable",10,10);
 pdf.addImage(imgData,"PNG",10,20,width,height);
 
-pdf.save(name+"_timetable.pdf");
-
+pdf.save("staff_timetable.pdf");
 }
 
+/* INIT */
 loadStaff();
 
+/* PRO BADGE */
+var isPro = localStorage.getItem("isProUser");
+
+if(isPro === "true"){
+
+var logo = document.getElementById("logoText");
+var badge = document.getElementById("proBadge");
+
+if(logo && badge){
+logo.classList.add("pro-user");
+badge.innerText = "PRO";
+}
+
+}
 </script>
 
 </body>
