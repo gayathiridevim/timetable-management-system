@@ -233,145 +233,92 @@ box.innerHTML = `
 
 function generateTimetable(){
 
-const selected = document.getElementById("departmentSelect").value;
+    const days = ["Mon","Tue","Wed","Thu","Fri"];
+    const hours = [1,2,3,4,5,6];
 
-if(!selected){
-    showToast("Please select department");
-    return;
-}
+    const selectedDept = document.getElementById("departmentSelect").value;
+    if(!selectedDept){
+        showToast("Select department");
+        return;
+    }
 
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
-const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-const sections = JSON.parse(localStorage.getItem("sections_"+selected)) || [];
+    const sections = JSON.parse(localStorage.getItem("sections")) || [];
+    const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 
-const dep = departments.find(d => (d.name+"_sem_"+d.semester) === selected);
-if(!dep){
-    showToast("Department not found");
-    return;
-}
+    // Filter only this department
+    const deptSections = sections.filter(s => s.department === selectedDept);
+    const deptSubjects = subjects.filter(s => s.department === selectedDept);
 
-if(sections.length === 0){
-    showToast("Generate sections first");
-    return;
-}
+    // 🔥 GLOBAL STAFF TRACKER (IMPORTANT)
+    let staffBusy = {}; 
+    // format: { "Ravi": ["Mon-1","Tue-3"] }
 
-/* ✅ FILTER SUBJECTS (STRICT MATCH) */
-const depSubjects = subjects.filter(s => 
-    (s.dept + "_sem_" + s.sem).replace(/\s+/g,"").toLowerCase() === 
-    selected.replace(/\s+/g,"").toLowerCase()
-);
+    // FINAL TIMETABLE
+    let timetable = {};
 
-if(depSubjects.length === 0){
-    showToast("No subjects found for this department");
-    return;
-}
+    // 🔁 FOR EACH SECTION
+    deptSections.forEach(section => {
 
-const days = Number(dep.days);
-const periods = Number(dep.periods);
+        let grid = {};
 
-let timetableData = {};
-
-/* 🔥 GLOBAL STAFF TRACKER */
-let staffBusy = {};
-
-/* 🔥 CREATE MASTER SUBJECT POOL */
-let masterPool = [];
-
-depSubjects.forEach(sub => {
-    for(let i=0; i<sub.credits; i++){
-        masterPool.push({
-            name: sub.name,
-            staff: sub.staff
+        // Initialize empty grid
+        days.forEach(day => {
+            hours.forEach(hr => {
+                grid[`${day}-${hr}`] = null;
+            });
         });
-    }
-});
 
-/* 🔄 SHUFFLE MASTER */
-masterPool.sort(() => Math.random() - 0.5);
+        // 🔁 SUBJECT ALLOCATION
+        deptSubjects.forEach(sub => {
 
-sections.forEach(section => {
+            let count = sub.hoursPerWeek;
+            let attempts = 0;
 
-    let grid = [];
+            while(count > 0 && attempts < 100){
 
-    /* 🔥 NEW: section index for variation */
-    let sectionIndex = sections.indexOf(section);
+                attempts++;
 
-    /* CREATE EMPTY GRID */
-    for(let d=0; d<days; d++){
-        grid[d] = new Array(periods).fill("-");
-    }
+                let day = days[Math.floor(Math.random()*days.length)];
+                let hr = hours[Math.floor(Math.random()*hours.length)];
+                let slot = `${day}-${hr}`;
 
-    /* CLONE POOL FOR EACH SECTION */
-   let subjectPool = [...masterPool];
+                let staff = sub.staff;
 
-/* 🔥 SHUFFLE PER SECTION (IMPORTANT) */
-subjectPool.sort(() => Math.random() - 0.5);
+                // initialize staff
+                if(!staffBusy[staff]) staffBusy[staff] = [];
 
-    for(let d=0; d<days; d++){
-        for(let p=0; p<periods; p++){
+                // ✅ CONDITIONS (CLASH CHECK)
+                if(
+                    !grid[slot] && // section free
+                    !staffBusy[staff].includes(slot) // staff free
+                ){
+                    grid[slot] = {
+                        subject: sub.name,
+                        staff: staff
+                    };
 
-            let timeKey = `${d}-${p}`;
-            if(!staffBusy[timeKey]) staffBusy[timeKey] = [];
-
-            let placed = false;
-
-            /* TRY TO PLACE VALID SUBJECT */
-            for(let i=0; i<subjectPool.length; i++){
-
-    if(subjectPool.length === 0) break; // ✅ FIX
-
-    let index = (i + sectionIndex) % subjectPool.length;
-    let sub = subjectPool[index];
-
-    if(!sub) continue; // ✅ SAFETY
-
-                if(!staffBusy[timeKey].includes(sub.staff)){
-
-                    grid[d][p] = sub.name;
-
-                    staffBusy[timeKey].push(sub.staff);
-
-                    subjectPool.splice(index,1);
-
-                    placed = true;
-                    break;
+                    staffBusy[staff].push(slot);
+                    count--;
                 }
             }
 
-            /* 🔥 FALLBACK (NO EMPTY) */
-            if(!placed){
-                let sub = subjectPool.shift();
-
-                if(sub){
-                    grid[d][p] = sub.name;
-                } else {
-                    let randomSub = masterPool[Math.floor(Math.random()*masterPool.length)];
-                    grid[d][p] = randomSub.name;
-                }
+            // ⚠️ If cannot place fully
+            if(count > 0){
+                console.warn(`Could not fully assign ${sub.name} for ${section.name}`);
             }
 
-        }
-    }
+        });
 
-    timetableData[section] = grid;
+        timetable[section.name] = grid;
 
-});
+    });
 
-/* SAVE */
-localStorage.setItem("timetable_"+selected, JSON.stringify(timetableData));
+    // SAVE
+    localStorage.setItem("timetable", JSON.stringify(timetable));
 
-console.log("TIMETABLE:", timetableData);
-console.log("BEFORE CLASH");
-
-try{
-    checkClashes(timetableData, sections);
-}catch(e){
-    console.error("CLASH ERROR:", e);
+    showToast("Timetable generated successfully ✅");
 }
 
-console.log("AFTER CLASH");
-
-showToast("Timetable Generated Successfully");
 
 
 function showToast(message){
