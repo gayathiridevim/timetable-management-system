@@ -206,9 +206,12 @@ for(let section in timetableData){
 
 const grid=timetableData[section];
 
-const deptName=section.split("-")[0];
+let deptKey = section.split("-")[0];
 
-let dept = departments.find(d=>d.name===deptName) || {};
+// 🔥 FIX
+let deptName = deptKey.split("_sem_")[0];
+
+let dept = departments.find(d => d.name === deptName) || {};
 
 let startTime = dept.startTime || "09:30";
 let periodMinutes = Number(dept.periodMinutes) || 50;
