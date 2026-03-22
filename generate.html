@@ -266,7 +266,6 @@ function generateTimetable(){
     sections.forEach(section => {
 
         let grid = Array.from({length: days}, () => Array(periods).fill(""));
-subjectQueue.sort(() => Math.random() - 0.5);
         let subjectQueue = [];
 
         // 🔥 create subject queue
