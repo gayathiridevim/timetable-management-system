@@ -216,10 +216,9 @@ if(!subject || subject === "-") continue;
                     /* FIND STAFF FOR SUBJECT */
                     const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 
-                    const clean = subject.split("(")[0].trim();
-
+                    const clean = subject.trim();
 const found = subjects.find(s => 
-  s.name.trim().toLowerCase() === clean.toLowerCase()
+  s.name.trim().toLowerCase() === subject.trim().toLowerCase()
 );
 
                     if(
