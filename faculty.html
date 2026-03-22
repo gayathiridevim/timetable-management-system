@@ -222,7 +222,10 @@ const found = subjects.find(s =>
   s.name.trim().toLowerCase() === clean.toLowerCase()
 );
 
-                    if(found && found.staff.toLowerCase() === selected.toLowerCase()){
+                    if(
+found &&
+found.staff.trim().toLowerCase() === selected.trim().toLowerCase()
+){
 
                         grid[d][p] = subject + " (" + section + ")";
                     }
