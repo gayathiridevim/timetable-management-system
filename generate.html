@@ -240,7 +240,13 @@ function generateTimetable(){
         return;
     }
 
-    const sections = JSON.parse(localStorage.getItem("sections")) || [];
+    const sectionsKey = "sections_" + selectedDept;
+const rawSections = JSON.parse(localStorage.getItem(sectionsKey)) || [];
+
+const sections = rawSections.map(sec => ({
+    name: sec.split("-")[1],
+    department: sec.split("-")[0]
+}));
     const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 
     // 🔥 SAFE FILTER (IMPORTANT FIX)
