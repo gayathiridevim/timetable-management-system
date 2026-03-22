@@ -320,7 +320,9 @@ function generateTimetable(){
 
     });
 
-    localStorage.setItem(`timetable_${cleanKey}`, JSON.stringify(timetable));
+    timetable = fixAllClashes(timetable);
+
+localStorage.setItem(`timetable_${cleanKey}`, JSON.stringify(timetable));
 
     showToast("Timetable generated successfully ✅");
 }
@@ -372,7 +374,106 @@ badge.innerText = "PRO";
 
 }
 
+function fixAllClashes(timetable){
 
+    let staffList = JSON.parse(localStorage.getItem("staff")) || [];
+
+    let days = 5;
+    let periods = 6;
+
+    let changed = true;
+
+    while(changed){
+
+        changed = false;
+
+        let slotMap = {};
+
+        // 🔍 build slot map
+        for(let sec in timetable){
+
+            let grid = timetable[sec];
+
+            for(let d=0; d<days; d++){
+                for(let p=0; p<periods; p++){
+
+                    let subject = grid[d][p];
+                    if(!subject) continue;
+
+                    let staffObj = staffList.find(s => s.subject === subject);
+                    if(!staffObj) continue;
+
+                    let staff = staffObj.name;
+                    let slot = `${d}-${p}`;
+
+                    if(!slotMap[slot]) slotMap[slot] = [];
+
+                    slotMap[slot].push({sec, d, p, staff, subject});
+                }
+            }
+        }
+
+        // 🔥 FIX CLASHES
+        for(let slot in slotMap){
+
+            let arr = slotMap[slot];
+
+            let names = arr.map(x => x.staff);
+            let seen = new Set();
+
+            arr.forEach(item => {
+
+                if(seen.has(item.staff)){
+
+                    // 🔥 CLASH FOUND → REASSIGN
+                    let grid = timetable[item.sec];
+
+                    let moved = false;
+
+                    for(let d2=0; d2<days; d2++){
+                        for(let p2=0; p2<periods; p2++){
+
+                            let newSlot = `${d2}-${p2}`;
+
+                            if(grid[d2][p2] === ""){
+
+                                // check staff free
+                                let clash = false;
+
+                                for(let sec2 in timetable){
+                                    let g2 = timetable[sec2];
+
+                                    if(g2[d2][p2] === item.subject){
+                                        clash = true;
+                                        break;
+                                    }
+                                }
+
+                                if(!clash){
+                                    grid[d2][p2] = item.subject;
+                                    grid[item.d][item.p] = "";
+                                    moved = true;
+                                    changed = true;
+                                    break;
+                                }
+                            }
+
+                        }
+                        if(moved) break;
+                    }
+
+                } else {
+                    seen.add(item.staff);
+                }
+
+            });
+
+        }
+
+    }
+
+    return timetable;
+}
 
 </script>
 </body>
