@@ -234,6 +234,7 @@ box.innerHTML = `
 function generateTimetable(){
 
     const selectedDept = document.getElementById("departmentSelect").value;
+
     if(!selectedDept){
         showToast("Select department");
         return;
@@ -242,26 +243,39 @@ function generateTimetable(){
     const sections = JSON.parse(localStorage.getItem("sections")) || [];
     const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
 
+    // 🔥 SAFE FILTER (IMPORTANT FIX)
     const deptSections = sections.filter(s => 
-    selectedDept.toLowerCase().includes(s.department.toLowerCase())
-);
+        selectedDept.toLowerCase().includes((s.department || "").toLowerCase())
+    );
 
-const deptSubjects = subjects.filter(s => 
-    selectedDept.toLowerCase().includes(s.department.toLowerCase())
-);
+    const deptSubjects = subjects.filter(s => 
+        selectedDept.toLowerCase().includes((s.department || "").toLowerCase())
+    );
+
+    // ❗ DEBUG (REMOVE LATER)
+    console.log("Sections:", deptSections);
+    console.log("Subjects:", deptSubjects);
+
+    if(deptSections.length === 0){
+        showToast("No sections found ❌");
+        return;
+    }
+
+    if(deptSubjects.length === 0){
+        showToast("No subjects found ❌");
+        return;
+    }
 
     const days = 5;
     const periods = 6;
 
-    let staffBusy = {}; // 🔥 GLOBAL STAFF TRACK
-
+    let staffBusy = {};
     let timetable = {};
 
     let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
 
     deptSections.forEach(section => {
 
-        // ✅ CORRECT GRID FORMAT (IMPORTANT)
         let grid = Array.from({length: days}, () => Array(periods).fill(""));
 
         deptSubjects.forEach(sub => {
@@ -273,23 +287,21 @@ const deptSubjects = subjects.filter(s =>
 
                 attempts++;
 
-                let d = Math.floor(Math.random() * days);
-                let p = Math.floor(Math.random() * periods);
+                let d = Math.floor(Math.random()*days);
+                let p = Math.floor(Math.random()*periods);
 
                 let slot = `${d}-${p}`;
                 let staff = sub.staff;
 
                 if(!staffBusy[staff]) staffBusy[staff] = [];
 
-                // ✅ CLASH FREE LOGIC
                 if(
                     grid[d][p] === "" &&
                     !staffBusy[staff].includes(slot)
                 ){
-                    grid[d][p] = sub.name; // only subject (view expects this)
+                    grid[d][p] = sub.name;
 
                     staffBusy[staff].push(slot);
-
                     count--;
                 }
             }
