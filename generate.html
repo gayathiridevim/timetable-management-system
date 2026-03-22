@@ -274,7 +274,7 @@ function generateTimetable(){
                 subjectQueue.push(sub.name);
             }
         });
-
+subjectQueue.sort(() => Math.random() - 0.5);
         let index = 0;
 
         for(let d=0; d<days; d++){
