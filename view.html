@@ -300,7 +300,15 @@ let snackStart = minutesToTime(currentTime);
 let snackEnd = minutesToTime(currentTime + Number(snackDuration));
 
 tableHTML += `<th rowspan="${daysCount+1}" 
-style="background:#ffffff;font-weight:bold;vertical-align:middle;text-align:center;">
+style="
+background:#ffffff;
+font-weight:bold;
+vertical-align:middle;
+text-align:center;
+width:80px;
+padding:10px;
+line-height:1.5;
+">
 SNACK<br><small>${snackStart}-${snackEnd}</small>
 </th>`;
 
@@ -313,7 +321,15 @@ let lunchStart = minutesToTime(currentTime);
 let lunchEnd = minutesToTime(currentTime + Number(lunchDuration));
 
 tableHTML += `<th rowspan="${daysCount+1}" 
-style="background:#ffffff;font-weight:bold;vertical-align:middle;text-align:center;">
+style="
+background:#ffffff;
+font-weight:bold;
+vertical-align:middle;
+text-align:center;
+width:80px;
+padding:10px;
+line-height:1.5;
+">
 LUNCH<br><small>${lunchStart}-${lunchEnd}</small>
 </th>`;
 currentTime += Number(lunchDuration);
