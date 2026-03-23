@@ -512,8 +512,6 @@ pdf.text(`Class In-Charge: ${incharge}`,10,18);
 pdf.addImage(imgData,"PNG",10,25,pageWidth,imgHeight);
 
 
-/* -------- STAFF ALLOCATION (FIXED) -------- */
-
 /* -------- STAFF ALLOCATION (FINAL PERFECT FIX) -------- */
 
 const allStaff = JSON.parse(localStorage.getItem("staff")) || [];
@@ -533,10 +531,14 @@ table.querySelectorAll("td").forEach(td => {
 });
 
 // ✅ FILTER STAFF ONLY FOR THIS SECTION SUBJECTS
-const staffData = allStaff.filter(staff => {
-    return usedSubjects.has(staff.subject);
-});
+const secLetter = section.split("-")[1]; // A / B / C
 
+const staffData = allStaff.filter(staff => {
+    return (
+        usedSubjects.has(staff.subject) &&
+        staff.section === secLetter
+    );
+});
 let y = imgHeight + 35;
 
 pdf.setFontSize(14);
