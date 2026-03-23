@@ -514,29 +514,27 @@ pdf.addImage(imgData,"PNG",10,25,pageWidth,imgHeight);
 
 /* -------- STAFF ALLOCATION (FIXED) -------- */
 
+/* -------- STAFF ALLOCATION (FINAL PERFECT FIX) -------- */
+
 const allStaff = JSON.parse(localStorage.getItem("staff")) || [];
 
-const secLetter = section.split("-")[1];
-const deptName = section.split("-").slice(0, -1).join("-");
-
-// ✅ GET ONLY SUBJECTS USED IN THIS SECTION
-const timetableData = JSON.parse(localStorage.getItem("timetable_" + deptName)) || {};
-const grid = timetableData[section] || [];
+// ✅ GET SUBJECTS FROM CURRENT TABLE (100% accurate)
+const table = document.querySelector(`#table-${section}`);
 
 let usedSubjects = new Set();
 
-grid.forEach(day => {
-    day.forEach(sub => {
-        if(sub) usedSubjects.add(sub);
-    });
+table.querySelectorAll("td").forEach(td => {
+    let text = td.innerText.trim();
+
+    if(text){
+        let subject = text.replace("(T)","").replace("(L)","").trim();
+        usedSubjects.add(subject);
+    }
 });
 
-// ✅ FILTER STAFF (ONLY USED SUBJECTS IN THIS SECTION)
+// ✅ FILTER STAFF ONLY FOR THIS SECTION SUBJECTS
 const staffData = allStaff.filter(staff => {
-    return (
-        staff.dept.trim().toLowerCase() === deptName.trim().toLowerCase() &&
-        usedSubjects.has(staff.subject)
-    );
+    return usedSubjects.has(staff.subject);
 });
 
 let y = imgHeight + 35;
@@ -548,10 +546,15 @@ y += 8;
 
 pdf.setFontSize(11);
 
-staffData.forEach(staff=>{
-    pdf.text(`${staff.subject} - ${staff.name}`,10,y);
-    y += 6;
-});
+// ✅ IF NO STAFF → SHOW MESSAGE
+if(staffData.length === 0){
+    pdf.text("No staff allocated",10,y);
+}else{
+    staffData.forEach(staff=>{
+        pdf.text(`${staff.subject} - ${staff.name}`,10,y);
+        y += 6;
+    });
+}
 
 
 /* SAVE PDF */
