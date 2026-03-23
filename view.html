@@ -480,12 +480,10 @@ document.getElementById(`controls-${section}`).style.display="none";
 
 
 async function downloadPDF(section){
-const isPro = localStorage.getItem("isProUser") === "true";
 
-if(!isPro){
-showToast("PDF export available only in Pro version.");
-return;
-}
+// ✅ FIX 1: Force enable download (no pro block issue)
+const isPro = true;
+
 const incharge=document.getElementById(`incharge-${section}`).value;
 const dept=document.getElementById(`dept-${section}`).value;
 
@@ -514,17 +512,30 @@ pdf.text(`Class In-Charge: ${incharge}`,10,18);
 pdf.addImage(imgData,"PNG",10,25,pageWidth,imgHeight);
 
 
-/* -------- STAFF ALLOCATION -------- */
+/* -------- STAFF ALLOCATION (FIXED) -------- */
 
 const allStaff = JSON.parse(localStorage.getItem("staff")) || [];
 
 const secLetter = section.split("-")[1];
 const deptName = section.split("-").slice(0, -1).join("-");
 
+// ✅ GET ONLY SUBJECTS USED IN THIS SECTION
+const timetableData = JSON.parse(localStorage.getItem("timetable_" + deptName)) || {};
+const grid = timetableData[section] || [];
+
+let usedSubjects = new Set();
+
+grid.forEach(day => {
+    day.forEach(sub => {
+        if(sub) usedSubjects.add(sub);
+    });
+});
+
+// ✅ FILTER STAFF (ONLY USED SUBJECTS IN THIS SECTION)
 const staffData = allStaff.filter(staff => {
     return (
-        staff.department.trim().toLowerCase() === deptName.trim().toLowerCase() &&
-        staff.section.trim().toLowerCase() === secLetter.trim().toLowerCase()
+        staff.dept.trim().toLowerCase() === deptName.trim().toLowerCase() &&
+        usedSubjects.has(staff.subject)
     );
 });
 
@@ -538,11 +549,8 @@ y += 8;
 pdf.setFontSize(11);
 
 staffData.forEach(staff=>{
-
     pdf.text(`${staff.subject} - ${staff.name}`,10,y);
-
     y += 6;
-
 });
 
 
