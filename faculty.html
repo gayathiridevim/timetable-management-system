@@ -169,8 +169,41 @@ if(!selected){
 const departments = JSON.parse(localStorage.getItem("departments")) || [];
 
 /* DEFAULT SETTINGS */
-let maxDays = 0;
-let maxPeriods = 0;
+let sampleHTML = null;
+
+// 🔥 GET ORIGINAL TABLE HTML
+for(let key in localStorage){
+    if(key.startsWith("timetable_")){
+        let data = JSON.parse(localStorage.getItem(key));
+
+        for(let section in data){
+            // find matching section for this staff
+            sampleHTML = document.querySelector(`#table-${section}`);
+            if(sampleHTML){
+                sampleHTML = sampleHTML.outerHTML;
+                break;
+            }
+        }
+
+        if(sampleHTML) break;
+    }
+}
+
+if(!sampleHTML){
+    container.innerHTML = "<p>No timetable found</p>";
+    return;
+}
+
+// ✅ CREATE TEMP ELEMENT
+let tempDiv = document.createElement("div");
+tempDiv.innerHTML = sampleHTML;
+
+let table = tempDiv.querySelector("table");
+
+// 🔥 CLEAR ALL CELLS
+table.querySelectorAll("td").forEach(td=>{
+    td.innerHTML = "";
+});
 
 /* FIND ACTUAL GRID SIZE FROM GENERATED TIMETABLE */
 for(let key in localStorage){
@@ -237,7 +270,15 @@ const matchingStaff = staffList.filter(s =>
 
 // ✅ IF THIS STAFF IS ASSIGNED → FILL GRID
 if(matchingStaff.length > 0){
-    grid[d][p] = subject + " (" + section + ")";
+    let rows = table.querySelectorAll("tr");
+
+if(rows[d+1]){ // +1 skip header
+    let cells = rows[d+1].querySelectorAll("td");
+
+    if(cells[p+1]){ // +1 skip Day column
+        cells[p+1].innerHTML = subject + " (" + section + ")";
+    }
+}
 }
                 }
             }
@@ -282,7 +323,10 @@ html += `</tr>`;
 
 html += `</table></div>`;
 
-container.innerHTML = html;
+container.innerHTML = `<div class="form-card">
+<h3>${selected} - Timetable</h3>
+${table.outerHTML}
+</div>`;
 showToast("Staff timetable generated successfully");
 }
 
