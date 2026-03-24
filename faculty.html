@@ -216,6 +216,8 @@ if(!subject || subject === "-") continue;
 const staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
 // 🔥 FILTER ALL MATCHING STAFF (not just first)
+const secLetter = section.split("-").pop().trim().toLowerCase();
+
 const matchingStaff = staffList.filter(s =>
     s.subject &&
     subject &&
@@ -224,8 +226,7 @@ const matchingStaff = staffList.filter(s =>
     selected &&
     s.name.trim().toLowerCase() === selected.trim().toLowerCase() &&
     s.section &&
-    section &&
-    s.section.trim().toLowerCase() === section.split("-")[1].trim().toLowerCase()
+    s.section.trim().toLowerCase() === secLetter
 );
 
 // ✅ IF THIS STAFF IS ASSIGNED → FILL GRID
