@@ -193,7 +193,7 @@ maxPeriods = Math.max(maxPeriods, data[section][0].length);
 let days = maxDays;
 let periods = maxPeriods;
 
-let grid = Array.from({ length: days }, () => new Array(periods).fill("-"));
+let grid = Array.from({ length: days }, () => new Array(periods).fill(""));
 
 /* 🔥 LOOP ALL TIMETABLES */
 for(let key in localStorage){
@@ -258,8 +258,8 @@ html += `<tr><td><b>${daysArr[d]}</b></td>`;
 
 for(let p=0;p<periods;p++){
 
-if(grid[d][p] === "-"){
-html += `<td class="empty">-</td>`;
+if(!grid[d][p]){
+html += `<td></td>`;
 }else{
 html += `<td>${grid[d][p]}</td>`;
 }
@@ -272,7 +272,7 @@ html += `</tr>`;
 html += `</table></div>`;
 
 container.innerHTML = html;
-
+showToast("Staff timetable generated successfully");
 }
 
 
@@ -348,7 +348,26 @@ badge.innerText = "PRO";
 }
 
 }
+function showToast(message){
 
+const toast=document.createElement("div");
+
+toast.innerText=message;
+
+toast.style.position="fixed";
+toast.style.bottom="20px";
+toast.style.right="20px";
+toast.style.background="#fff";
+toast.style.padding="12px 18px";
+toast.style.borderRadius="8px";
+toast.style.boxShadow="0 4px 10px rgba(0,0,0,0.2)";
+toast.style.fontSize="14px";
+
+document.body.appendChild(toast);
+
+setTimeout(()=>{toast.remove();},3000);
+
+}
 </script>
 </body>
 </html>
