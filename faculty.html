@@ -212,20 +212,24 @@ for(let key in localStorage){
                     let subject = sectionGrid[d][p];
 
 if(!subject || subject === "-") continue;
-const staffList = JSON.parse(localStorage.getItem("staff")) || []
 
-const staffObj = staffList.find(s =>
+const staffList = JSON.parse(localStorage.getItem("staff")) || [];
+
+// 🔥 FILTER ALL MATCHING STAFF (not just first)
+const matchingStaff = staffList.filter(s =>
     s.subject &&
     subject &&
-    s.subject.trim().toLowerCase() === subject.trim().toLowerCase()
+    s.subject.trim().toLowerCase() === subject.trim().toLowerCase() &&
+    s.name &&
+    selected &&
+    s.name.trim().toLowerCase() === selected.trim().toLowerCase() &&
+    s.section &&
+    section &&
+    s.section.trim().toLowerCase() === section.split("-")[1].trim().toLowerCase()
 );
 
-if(
-    staffObj &&
-    staffObj.name &&
-    selected &&
-    staffObj.name.trim().toLowerCase() === selected.trim().toLowerCase()
-){
+// ✅ IF THIS STAFF IS ASSIGNED → FILL GRID
+if(matchingStaff.length > 0){
     grid[d][p] = subject + " (" + section + ")";
 }
                 }
