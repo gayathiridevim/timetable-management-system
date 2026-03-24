@@ -166,19 +166,24 @@ if(!selected){
     return;
 }
 
-/* 🔥 GET SAMPLE GRID (STRUCTURE) */
 let sampleGrid = null;
+let maxSize = 0;
 
 for(let key in localStorage){
     if(key.startsWith("timetable_")){
         let data = JSON.parse(localStorage.getItem(key));
 
         for(let section in data){
-            sampleGrid = data[section];
-            break;
-        }
 
-        if(sampleGrid) break;
+            let grid = data[section];
+
+            let size = grid.length * grid[0].length;
+
+            if(size > maxSize){
+                maxSize = size;
+                sampleGrid = grid;
+            }
+        }
     }
 }
 
