@@ -182,7 +182,13 @@ let data = JSON.parse(localStorage.getItem(key));
 for(let section in data){
 
 maxDays = Math.max(maxDays, data[section].length);
-maxPeriods = Math.max(maxPeriods, data[section][0].length);
+
+// 🔥 CHECK ALL ROWS (not just first)
+data[section].forEach(row=>{
+    if(row){
+        maxPeriods = Math.max(maxPeriods, row.length);
+    }
+});
 
 }
 
