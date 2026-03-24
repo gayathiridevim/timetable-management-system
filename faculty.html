@@ -166,75 +166,64 @@ if(!selected){
     return;
 }
 
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
+/* 🔥 GET SAMPLE GRID (STRUCTURE) */
+let sampleGrid = null;
 
-/* DEFAULT SETTINGS */
-let sampleHTML = null;
-
-// 🔥 GET ORIGINAL TABLE HTML
 for(let key in localStorage){
     if(key.startsWith("timetable_")){
         let data = JSON.parse(localStorage.getItem(key));
 
         for(let section in data){
-            // find matching section for this staff
-            sampleHTML = document.querySelector(`#table-${section}`);
-            if(sampleHTML){
-                sampleHTML = sampleHTML.outerHTML;
-                break;
-            }
+            sampleGrid = data[section];
+            break;
         }
 
-        if(sampleHTML) break;
+        if(sampleGrid) break;
     }
 }
 
-if(!sampleHTML){
+if(!sampleGrid){
     container.innerHTML = "<p>No timetable found</p>";
     return;
 }
 
-// ✅ CREATE TEMP ELEMENT
-let tempDiv = document.createElement("div");
-tempDiv.innerHTML = sampleHTML;
+/* ✅ GRID SIZE */
+let days = sampleGrid.length;
+let periods = sampleGrid[0].length;
 
-let table = tempDiv.querySelector("table");
+/* ✅ CREATE TABLE */
+let table = document.createElement("table");
+table.border = "1";
+table.style.width = "100%";
+table.style.borderCollapse = "collapse";
+table.style.textAlign = "center";
 
-// 🔥 CLEAR ALL CELLS
-table.querySelectorAll("td").forEach(td=>{
-    td.innerHTML = "";
-});
+/* HEADER */
+let header = "<tr><th>Day</th>";
+for(let p=1;p<=periods;p++){
+    header += `<th>P${p}</th>`;
+}
+header += "</tr>";
 
-/* FIND ACTUAL GRID SIZE FROM GENERATED TIMETABLE */
-for(let key in localStorage){
+table.innerHTML = header;
 
-if(key.startsWith("timetable_")){
+/* ADD EMPTY ROWS */
+const daysArr=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
-let data = JSON.parse(localStorage.getItem(key));
+for(let d=0; d<days; d++){
 
-for(let section in data){
+    let row = `<tr><td><b>${daysArr[d] || ""}</b></td>`;
 
-maxDays = Math.max(maxDays, data[section].length);
-
-// 🔥 CHECK ALL ROWS (not just first)
-data[section].forEach(row=>{
-    if(row){
-        maxPeriods = Math.max(maxPeriods, row.length);
+    for(let p=0; p<periods; p++){
+        row += `<td></td>`;
     }
-});
 
+    row += `</tr>`;
+
+    table.innerHTML += row;
 }
 
-}
-}
-
-/* CREATE GRID BASED ON REAL DATA */
-let days = maxDays;
-let periods = maxPeriods;
-
-let grid = Array.from({ length: days }, () => new Array(periods).fill(""));
-
-/* 🔥 LOOP ALL TIMETABLES */
+/* 🔥 FILL STAFF DATA */
 for(let key in localStorage){
 
     if(key.startsWith("timetable_")){
@@ -250,84 +239,54 @@ for(let key in localStorage){
 
                     let subject = sectionGrid[d][p];
 
-if(!subject || subject === "-") continue;
+                    if(!subject || subject === "-") continue;
 
-const staffList = JSON.parse(localStorage.getItem("staff")) || [];
+                    const staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
-// 🔥 FILTER ALL MATCHING STAFF (not just first)
-const secLetter = section.split("-").pop().trim().toLowerCase();
+                    const secLetter = section.split("-").pop().trim().toLowerCase();
 
-const matchingStaff = staffList.filter(s =>
-    s.subject &&
-    subject &&
-    s.subject.trim().toLowerCase() === subject.trim().toLowerCase() &&
-    s.name &&
-    selected &&
-    s.name.trim().toLowerCase() === selected.trim().toLowerCase() &&
-    s.section &&
-    s.section.trim().toLowerCase() === secLetter
-);
+                    const match = staffList.some(s =>
+                        s.subject &&
+                        s.subject.trim().toLowerCase() === subject.trim().toLowerCase() &&
+                        s.name &&
+                        s.name.trim().toLowerCase() === selected.trim().toLowerCase() &&
+                        s.section &&
+                        s.section.trim().toLowerCase() === secLetter
+                    );
 
-// ✅ IF THIS STAFF IS ASSIGNED → FILL GRID
-if(matchingStaff.length > 0){
-    let rows = table.querySelectorAll("tr");
+                    if(match){
 
-if(rows[d+1]){ // +1 skip header
-    let cells = rows[d+1].querySelectorAll("td");
+                        let rows = table.querySelectorAll("tr");
 
-    if(cells[p+1]){ // +1 skip Day column
-        cells[p+1].innerHTML = subject + " (" + section + ")";
-    }
-}
-}
+                        if(rows[d+1]){
+                            let cells = rows[d+1].querySelectorAll("td");
+
+                            if(cells[p+1]){
+                                cells[p+1].innerHTML = subject + " (" + section + ")";
+                            }
+                        }
+
+                    }
+
                 }
             }
+
         }
+
     }
+
 }
 
-/* 🔥 BUILD UI */
-const daysArr=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-
-let html = `
+/* 🔥 FINAL OUTPUT */
+container.innerHTML = `
 <div class="form-card">
-<h3>${selected} - Timetable</h3>
-
-<table border="1" style="width:100%;text-align:center;border-collapse:collapse">
-<tr>
-<th>Day</th>
-`;
-
-for(let p=1;p<=periods;p++){
-html += `<th>P${p}</th>`;
-}
-
-html += `</tr>`;
-
-for(let d=0; d<days; d++){
-
-html += `<tr><td><b>${daysArr[d]}</b></td>`;
-
-for(let p=0;p<periods;p++){
-
-if(!grid[d][p]){
-html += `<td></td>`;
-}else{
-html += `<td>${grid[d][p]}</td>`;
-}
-
-}
-
-html += `</tr>`;
-}
-
-html += `</table></div>`;
-
-container.innerHTML = `<div class="form-card">
 <h3>${selected} - Timetable</h3>
 ${table.outerHTML}
 </div>`;
+
+/* TOAST */
 showToast("Staff timetable generated successfully");
+
 }
 
 
