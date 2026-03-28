@@ -242,45 +242,7 @@ for(let key in localStorage){
             for(let d = 0; d < sectionGrid.length; d++){
                 for(let p = 0; p < sectionGrid[d].length; p++){
 
-                    let subject = sectionGrid[d][p];
-
-                    if(!subject || subject === "-") continue;
-
-                    const staffList = JSON.parse(localStorage.getItem("staff")) || [];
-
-                    const secLetter = section.split("-").pop().trim().toLowerCase();
-
-                    const match = staffList.some(s =>
-                        s.subject &&
-                        s.subject.trim().toLowerCase() === subject.trim().toLowerCase() &&
-                        s.name &&
-                        s.name.trim().toLowerCase() === selected.trim().toLowerCase() &&
-                        s.section &&
-                        s.section.trim().toLowerCase() === secLetter
-                    );
-
-                    if(match){
-
-                        let rows = table.querySelectorAll("tr");
-
-                        if(rows[d+1]){
-                            let cells = rows[d+1].querySelectorAll("td");
-
-                            if(cells[p+1]){
-                                cells[p+1].innerHTML = subject + " (" + section + ")";
-                            }
-                        }
-
-                    }
-
-                }
-            }
-
-        }
-
-    }
-
-}
+                    
 
 /* 🔥 FINAL OUTPUT */
 container.innerHTML = `

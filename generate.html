@@ -303,11 +303,11 @@ subjectQueue.sort(() => Math.random() - 0.5);
 
                     if(
     !staffBusy[staff].includes(slot) &&
-    !(p > 0 && grid[d][p-1] === subject) &&   // ❌ no consecutive same subject
-    !(d > 0 && grid[d-1][p] === subject)      // ❌ no vertical repeat
+    !(p > 0 && grid[d][p-1] === subject) &&     
+    !(d > 0 && grid[d-1][p] === subject)      
 ){
 
-                        grid[d][p] = subject;
+                        grid[d][p] = subject + "|" + staff;
                         staffBusy[staff].push(slot);
 
                         index++;
@@ -320,7 +320,11 @@ subjectQueue.sort(() => Math.random() - 0.5);
 
                 // fallback (rare)
                 if(grid[d][p] === ""){
-                    grid[d][p] = subjectQueue[index % subjectQueue.length];
+                    let subject = subjectQueue[index % subjectQueue.length];
+let staffObj = staffList.find(s => s.subject === subject);
+let staff = staffObj ? staffObj.name : "Staff";
+
+grid[d][p] = subject + "|" + staff;
                     index++;
                 }
 
@@ -329,7 +333,7 @@ subjectQueue.sort(() => Math.random() - 0.5);
 
         timetable[`${cleanKey}-${section.name}`] = grid;
 
-    });
+});
 
     timetable = fixAllClashes(timetable);
 
