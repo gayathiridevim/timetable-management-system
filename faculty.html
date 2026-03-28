@@ -139,15 +139,22 @@ function loadStaff(){
 const staff = JSON.parse(localStorage.getItem("staff")) || [];
 const select = document.getElementById("staffSelect");
 
-select.innerHTML=`<option value="">Select Staff</option>`;
+select.innerHTML = `<option value="">Select Staff</option>`;
 
-const names=[...new Set(staff.map(s=>s.name))];
+// ✅ filter valid names + remove duplicates
+const names = [...new Set(
+    staff
+      .map(s => s.name)
+      .filter(n => n && n.trim() !== "")
+)];
+
+console.log("FINAL STAFF NAMES:", names); // debug
 
 names.forEach(n=>{
-let opt=document.createElement("option");
-opt.value=n;
-opt.textContent=n;
-select.appendChild(opt);
+    let opt = document.createElement("option");
+    opt.value = n;
+    opt.textContent = n;
+    select.appendChild(opt);
 });
 
 }
@@ -169,14 +176,13 @@ if(!selected){
 let sampleGrid = null;
 let maxSize = 0;
 
+/* FIND GRID SIZE */
 for(let key in localStorage){
     if(key.startsWith("timetable_")){
         let data = JSON.parse(localStorage.getItem(key));
 
         for(let section in data){
-
             let grid = data[section];
-
             let size = grid.length * grid[0].length;
 
             if(size > maxSize){
@@ -192,11 +198,11 @@ if(!sampleGrid){
     return;
 }
 
-/* ✅ GRID SIZE */
+/* GRID SIZE */
 let days = sampleGrid.length;
 let periods = sampleGrid[0].length;
 
-/* ✅ CREATE TABLE */
+/* CREATE TABLE */
 let table = document.createElement("table");
 table.border = "1";
 table.style.width = "100%";
@@ -212,23 +218,19 @@ header += "</tr>";
 
 table.innerHTML = header;
 
-/* ADD EMPTY ROWS */
+/* DAYS */
 const daysArr=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
 for(let d=0; d<days; d++){
-
     let row = `<tr><td><b>${daysArr[d] || ""}</b></td>`;
-
     for(let p=0; p<periods; p++){
         row += `<td></td>`;
     }
-
     row += `</tr>`;
-
     table.innerHTML += row;
 }
 
-/* 🔥 FILL STAFF DATA */
+/* 🔥 MAIN LOGIC */
 for(let key in localStorage){
 
     if(key.startsWith("timetable_")){
@@ -242,16 +244,44 @@ for(let key in localStorage){
             for(let d = 0; d < sectionGrid.length; d++){
                 for(let p = 0; p < sectionGrid[d].length; p++){
 
-                    
+                    let cell = sectionGrid[d][p];
 
-/* 🔥 FINAL OUTPUT */
+                    if(!cell || cell === "-") continue;
+
+                    let parts = cell.split("|");
+
+                    let subject = parts[0];
+                    let staff = parts[1];
+
+                    if(staff && staff.toLowerCase() === selected.toLowerCase()){
+
+                        let rows = table.querySelectorAll("tr");
+
+                        if(rows[d+1]){
+                            let cells = rows[d+1].querySelectorAll("td");
+
+                            if(cells[p+1]){
+                                cells[p+1].innerHTML += subject + " (" + section + ")<br>";
+                            }
+                        }
+                    }
+
+                }
+            }
+
+        }
+
+    }
+
+}
+
+/* FINAL OUTPUT */
 container.innerHTML = `
 <div class="form-card">
 <h3>${selected} - Timetable</h3>
 ${table.outerHTML}
 </div>`;
 
-/* TOAST */
 showToast("Staff timetable generated successfully");
 
 }
