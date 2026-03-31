@@ -247,14 +247,17 @@ function loadStaffTimetable(){
               for(let d = 0; d < sectionGrid.length; d++){
                   for(let p = 0; p < sectionGrid[d].length; p++){
 
-                      let cell = sectionGrid[d][p];
-                      if(!cell || cell === "-") continue;
+                     let subject = cell;
 
-                      let parts = cell.split("|");
-                      let subject = parts[0];
-                      let staff = parts[1];
+// get staff list
+let staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
-                      if(staff && staff.trim().toLowerCase() === selected.trim().toLowerCase()){
+// find staff for this subject
+let staffObj = staffList.find(s => 
+    s.subject.trim().toLowerCase() === subject.trim().toLowerCase()
+);
+
+if(staffObj && staffObj.name.trim().toLowerCase() === selected.trim().toLowerCase()){
 
                           let rows = table.querySelectorAll("tr");
 
