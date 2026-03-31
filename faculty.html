@@ -164,130 +164,106 @@ names.forEach(n=>{
 let originalTables = {};
 
 function loadStaffTimetable(){
+  const selected = document.getElementById("staffSelect").value;
+  const container = document.getElementById("staffContainer");
 
-const selected = document.getElementById("staffSelect").value;
-const container = document.getElementById("staffContainer");
+  if(!selected){
+      container.innerHTML="";
+      return;
+  }
 
-if(!selected){
-    container.innerHTML="";
-    return;
+  let sampleGrid = null;
+  let maxSize = 0;
+
+  // find largest grid to get table size
+  for(let key in localStorage){
+      if(key.startsWith("timetable_")){
+          let data = JSON.parse(localStorage.getItem(key));
+          for(let section in data){
+              let grid = data[section];
+              let size = grid.length * grid[0].length;
+              if(size > maxSize){
+                  maxSize = size;
+                  sampleGrid = grid;
+              }
+          }
+      }
+  }
+
+  if(!sampleGrid){
+      container.innerHTML = "<p>No timetable found</p>";
+      return;
+  }
+
+  let days = sampleGrid.length;
+  let periods = sampleGrid[0].length;
+
+  // build table
+  let table = document.createElement("table");
+  table.border = "1";
+  table.style.width = "100%";
+  table.style.borderCollapse = "collapse";
+  table.style.textAlign = "center";
+
+  // header row
+  let header = "<tr><th>Day</th>";
+  for(let p=1;p<=periods;p++){
+      header += `<th>P${p}</th>`;
+  }
+  header += "</tr>";
+  table.innerHTML = header;
+
+  const daysArr=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+  // empty rows
+  for(let d=0; d<days; d++){
+      let row = `<tr><td><b>${daysArr[d] || ""}</b></td>`;
+      for(let p=0; p<periods; p++){
+          row += `<td class="empty"></td>`;
+      }
+      row += `</tr>`;
+      table.innerHTML += row;
+  }
+
+  // fill only selected staff’s periods
+  for(let key in localStorage){
+      if(key.startsWith("timetable_")){
+          let data = JSON.parse(localStorage.getItem(key));
+          for(let section in data){
+              let sectionGrid = data[section];
+              for(let d = 0; d < sectionGrid.length; d++){
+                  for(let p = 0; p < sectionGrid[d].length; p++){
+                      let cell = sectionGrid[d][p];
+                      if(!cell || cell === "-") continue;
+
+                      let parts = cell.split("|");
+                      let subject = parts[0];
+                      let staff = parts[1];
+
+                      if(staff && staff.toLowerCase() === selected.toLowerCase()){
+                          let rows = table.querySelectorAll("tr");
+                          if(rows[d+1]){
+                              let cells = rows[d+1].querySelectorAll("td");
+                              if(cells[p+1]){
+                                  cells[p+1].classList.remove("empty");
+                                  cells[p+1].innerHTML = subject + " (" + section + ")";
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+      }
+  }
+
+  container.innerHTML = `
+    <div class="form-card">
+      <h3>${selected} - Timetable</h3>
+      ${table.outerHTML}
+    </div>`;
+  showToast("Staff timetable generated successfully");
 }
 
-let sampleGrid = null;
-let maxSize = 0;
-
-/* FIND GRID SIZE */
-for(let key in localStorage){
-    if(key.startsWith("timetable_")){
-        let data = JSON.parse(localStorage.getItem(key));
-
-        for(let section in data){
-            let grid = data[section];
-            let size = grid.length * grid[0].length;
-
-            if(size > maxSize){
-                maxSize = size;
-                sampleGrid = grid;
-            }
-        }
-    }
-}
-
-if(!sampleGrid){
-    container.innerHTML = "<p>No timetable found</p>";
-    return;
-}
-
-/* GRID SIZE */
-let days = sampleGrid.length;
-let periods = sampleGrid[0].length;
-
-/* CREATE TABLE */
-let table = document.createElement("table");
-table.border = "1";
-table.style.width = "100%";
-table.style.borderCollapse = "collapse";
-table.style.textAlign = "center";
-
-/* HEADER */
-let header = "<tr><th>Day</th>";
-for(let p=1;p<=periods;p++){
-    header += `<th>P${p}</th>`;
-}
-header += "</tr>";
-
-table.innerHTML = header;
-
-/* DAYS */
-const daysArr=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-
-for(let d=0; d<days; d++){
-    let row = `<tr><td><b>${daysArr[d] || ""}</b></td>`;
-    for(let p=0; p<periods; p++){
-        row += `<td></td>`;
-    }
-    row += `</tr>`;
-    table.innerHTML += row;
-}
-
-/* 🔥 MAIN LOGIC */
-for(let key in localStorage){
-
-    if(key.startsWith("timetable_")){
-
-        let data = JSON.parse(localStorage.getItem(key));
-
-        for(let section in data){
-
-            let sectionGrid = data[section];
-
-            for(let d = 0; d < sectionGrid.length; d++){
-                for(let p = 0; p < sectionGrid[d].length; p++){
-
-                    let cell = sectionGrid[d][p];
-
-                    if(!cell || cell === "-") continue;
-
-                    let parts = cell.split("|");
-
-                    let subject = parts[0];
-                    let staff = parts[1];
-
-                    if(staff && staff.toLowerCase() === selected.toLowerCase()){
-
-                        let rows = table.querySelectorAll("tr");
-
-                        if(rows[d+1]){
-                            let cells = rows[d+1].querySelectorAll("td");
-
-                            if(cells[p+1]){
-                                cells[p+1].innerHTML += subject + " (" + section + ")<br>";
-                            }
-                        }
-                    }
-
-                }
-            }
-
-        }
-
-    }
-
-}
-
-/* FINAL OUTPUT */
-container.innerHTML = `
-<div class="form-card">
-<h3>${selected} - Timetable</h3>
-${table.outerHTML}
-</div>`;
-
-showToast("Staff timetable generated successfully");
-
-}
-
-
-/* EDIT */
 function editTimetable(section){
 
 const table=document.querySelector(`#table-${section}`);
