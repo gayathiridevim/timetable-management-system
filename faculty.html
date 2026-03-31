@@ -240,13 +240,17 @@ function loadStaffTimetable(){
                       let subject = parts[0];
                       let staff = parts[1];
 
-                      if(staff && staff.toLowerCase() === selected.toLowerCase()){
+                      if(staff && staff.trim().toLowerCase() === selected.trim().toLowerCase()){
                           let rows = table.querySelectorAll("tr");
                           if(rows[d+1]){
                               let cells = rows[d+1].querySelectorAll("td");
                               if(cells[p+1]){
                                   cells[p+1].classList.remove("empty");
-                                  cells[p+1].innerHTML = subject + " (" + section + ")";
+                                  if(cells[p+1].innerHTML !== ""){
+    cells[p+1].innerHTML += "<br>" + subject + " (" + section + ")";
+} else {
+    cells[p+1].innerHTML = subject + " (" + section + ")";
+}
                               }
                           }
                       }
