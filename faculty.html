@@ -164,153 +164,96 @@ names.forEach(n=>{
 let originalTables = {};
 
 function loadStaffTimetable(){
-alert("clicked");
-  const selected = document.getElementById("staffSelect").value;
+
+  const selected = document.getElementById("staffSelect").value.trim().toLowerCase();
   const container = document.getElementById("staffContainer");
 
   if(!selected){
-      container.innerHTML="";
-      return;
+    container.innerHTML = "";
+    return;
   }
 
-  let sampleGrid = null;
-  let maxSize = 0;
+  let staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
-  // find largest grid
-  for(let key in localStorage){
-      if(key.startsWith("timetable_")){
-          let data = JSON.parse(localStorage.getItem(key));
-          for(let section in data){
-              let grid = data[section];
-              let size = grid.length * grid[0].length;
-              if(size > maxSize){
-                  maxSize = size;
-                  sampleGrid = grid;
-              }
-          }
-      }
-  }
+  // create empty timetable (5 days, 6 periods)
+  let days = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+  let timetable = {};
 
-  if(!sampleGrid){
-      container.innerHTML = "<p>No timetable found</p>";
-      return;
-  }
-
-  let days = sampleGrid.length;
-  let periods = sampleGrid[0].length;
-
-  const daysArr=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-
-  // create table
-  let table = document.createElement("table");
-  table.border = "1";
-  table.style.width = "100%";
-  table.style.borderCollapse = "collapse";
-  table.style.textAlign = "center";
-
-  // HEADER WITH TIME + LUNCH
-  let header = `
-  <tr>
-    <th>Day</th>
-    <th>P1<br><small>9:30-10:20</small></th>
-    <th>P2<br><small>10:20-11:10</small></th>
-    <th>P3<br><small>11:10-12:00</small></th>
-    <th rowspan="${days+1}" style="font-weight:bold;">LUNCH<br>12:00-12:30</th>
-    <th>P4<br><small>12:30-13:20</small></th>
-    <th>P5<br><small>13:20-14:10</small></th>
-    <th>P6<br><small>14:10-15:00</small></th>
-  </tr>
-  `;
-
-  table.innerHTML = header;
-
-  // CREATE EMPTY ROWS
-  for(let d=0; d<days; d++){
-      let row = `<tr><td><b>${daysArr[d] || ""}</b></td>`;
-
-      for(let p=0; p<periods; p++){
-          row += `<td class="empty"></td>`;
-      }
-
-      row += `</tr>`;
-      table.innerHTML += row;
-  }
-
-  // FILL DATA
-  for(let key in localStorage){
-      if(key.startsWith("timetable_")){
-          let data = JSON.parse(localStorage.getItem(key));
-
-          for(let section in data){
-              let sectionGrid = data[section];
-
-              for(let d = 0; d < sectionGrid.length; d++){
-                  for(let p = 0; p < sectionGrid[d].length; p++){
-
-                     let cell = sectionGrid[d][p];
-if(!cell || cell === "-") continue;
-
-let subject = cell.trim().toLowerCase();
-
-// get staff list
-let staffList = JSON.parse(localStorage.getItem("staff")) || [];
-
-// find staff for this subject
-let staffObj = staffList.find(s => 
-    s.subject && s.subject.trim().toLowerCase() === subject
-);
-
-if(staffObj && staffObj.name.trim().toLowerCase() === selected.trim().toLowerCase()){
-
-                          let rows = table.querySelectorAll("tr");
-
-                          if(rows[d+1]){
-                              let cells = rows[d+1].querySelectorAll("td");
-
-                              // SHIFT AFTER LUNCH
-                              let colIndex = p+1;
-                              if(p >= 3) colIndex += 1;
-
-                              if(cells[colIndex]){
-
-                                  cells[colIndex].classList.remove("empty");
-
-                                  // HANDLE MULTIPLE CLASSES (CLASH)
-                                  if(cells[colIndex].innerHTML !== ""){
-                                      cells[colIndex].innerHTML += "<br>" + subject + " (" + section + ")";
-                                  } else {
-                                      cells[colIndex].innerHTML = subject + " (" + section + ")";
-                                  }
-
-                              }
-                          }
-                      }
-                  }
-              }
-          }
-      }
-  }
-
-  // FILL FREE PERIODS
-  let allCells = table.querySelectorAll("td.empty");
-  allCells.forEach(cell => {
-      if(cell.innerHTML === ""){
-          cell.innerHTML = "FREE";
-          cell.style.color = "gray";
-      }
+  days.forEach(day => {
+    timetable[day] = ["","","","","",""];
   });
 
-  // FINAL OUTPUT
-  container.innerHTML = `
-    <div class="form-card">
-      <h3>${selected} - Timetable</h3>
-      ${table.outerHTML}
-    </div>
+  // 🔥 MAIN LOGIC → scan all class timetables
+  for(let key in localStorage){
+
+    if(key.startsWith("timetable_")){
+
+      let data = JSON.parse(localStorage.getItem(key));
+
+      for(let section in data){
+
+        let grid = data[section];
+
+        for(let d=0; d<grid.length; d++){
+          for(let p=0; p<grid[d].length; p++){
+
+            let subject = (grid[d][p] || "").trim().toLowerCase();
+            if(!subject) continue;
+
+            // find matching staff
+            let match = staffList.some(s =>
+  s.name.trim().toLowerCase() === selected &&
+  s.subject.trim().toLowerCase() === subject &&
+  section.toLowerCase().includes(s.section.toLowerCase())
+);
+
+            if(match){
+              timetable[days[d]][p] += 
+                (timetable[days[d]][p] ? "<br>" : "") +
+                subject + " (" + section + ")";
+            }
+
+          }
+        }
+
+      }
+
+    }
+
+  }
+
+  // 🔥 BUILD TABLE UI
+  let html = `
+  <div class="form-card">
+    <h3>${selected} - Timetable</h3>
+    <table border="1" style="width:100%;border-collapse:collapse;text-align:center">
+      <tr>
+        <th>Day</th>
+        <th>P1</th>
+        <th>P2</th>
+        <th>P3</th>
+        <th>P4</th>
+        <th>P5</th>
+        <th>P6</th>
+      </tr>
   `;
+
+  days.forEach(day => {
+    html += `<tr><td><b>${day}</b></td>`;
+
+    timetable[day].forEach(cell => {
+      html += `<td>${cell || "FREE"}</td>`;
+    });
+
+    html += `</tr>`;
+  });
+
+  html += `</table></div>`;
+
+  container.innerHTML = html;
 
   showToast("Staff timetable generated successfully");
 }
-
 function editTimetable(section){
 
 const table=document.querySelector(`#table-${section}`);
