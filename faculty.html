@@ -164,6 +164,7 @@ names.forEach(n=>{
 let originalTables = {};
 
 function loadStaffTimetable(){
+
   const selected = document.getElementById("staffSelect").value;
   const container = document.getElementById("staffContainer");
 
@@ -175,7 +176,7 @@ function loadStaffTimetable(){
   let sampleGrid = null;
   let maxSize = 0;
 
-  // find largest grid to get table size
+  // find largest grid
   for(let key in localStorage){
       if(key.startsWith("timetable_")){
           let data = JSON.parse(localStorage.getItem(key));
@@ -198,41 +199,54 @@ function loadStaffTimetable(){
   let days = sampleGrid.length;
   let periods = sampleGrid[0].length;
 
-  // build table
+  const daysArr=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+  // create table
   let table = document.createElement("table");
   table.border = "1";
   table.style.width = "100%";
   table.style.borderCollapse = "collapse";
   table.style.textAlign = "center";
 
-  // header row
-  let header = "<tr><th>Day</th>";
-  for(let p=1;p<=periods;p++){
-      header += `<th>P${p}</th>`;
-  }
-  header += "</tr>";
+  // HEADER WITH TIME + LUNCH
+  let header = `
+  <tr>
+    <th>Day</th>
+    <th>P1<br><small>9:30-10:20</small></th>
+    <th>P2<br><small>10:20-11:10</small></th>
+    <th>P3<br><small>11:10-12:00</small></th>
+    <th rowspan="${days+1}" style="font-weight:bold;">LUNCH<br>12:00-12:30</th>
+    <th>P4<br><small>12:30-13:20</small></th>
+    <th>P5<br><small>13:20-14:10</small></th>
+    <th>P6<br><small>14:10-15:00</small></th>
+  </tr>
+  `;
+
   table.innerHTML = header;
 
-  const daysArr=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-
-  // empty rows
+  // CREATE EMPTY ROWS
   for(let d=0; d<days; d++){
       let row = `<tr><td><b>${daysArr[d] || ""}</b></td>`;
+
       for(let p=0; p<periods; p++){
           row += `<td class="empty"></td>`;
       }
+
       row += `</tr>`;
       table.innerHTML += row;
   }
 
-  // fill only selected staff’s periods
+  // FILL DATA
   for(let key in localStorage){
       if(key.startsWith("timetable_")){
           let data = JSON.parse(localStorage.getItem(key));
+
           for(let section in data){
               let sectionGrid = data[section];
+
               for(let d = 0; d < sectionGrid.length; d++){
                   for(let p = 0; p < sectionGrid[d].length; p++){
+
                       let cell = sectionGrid[d][p];
                       if(!cell || cell === "-") continue;
 
@@ -241,16 +255,27 @@ function loadStaffTimetable(){
                       let staff = parts[1];
 
                       if(staff && staff.trim().toLowerCase() === selected.trim().toLowerCase()){
+
                           let rows = table.querySelectorAll("tr");
+
                           if(rows[d+1]){
                               let cells = rows[d+1].querySelectorAll("td");
-                              if(cells[p+1]){
-                                  cells[p+1].classList.remove("empty");
-                                  if(cells[p+1].innerHTML !== ""){
-    cells[p+1].innerHTML += "<br>" + subject + " (" + section + ")";
-} else {
-    cells[p+1].innerHTML = subject + " (" + section + ")";
-}
+
+                              // SHIFT AFTER LUNCH
+                              let colIndex = p+1;
+                              if(p >= 3) colIndex += 1;
+
+                              if(cells[colIndex]){
+
+                                  cells[colIndex].classList.remove("empty");
+
+                                  // HANDLE MULTIPLE CLASSES (CLASH)
+                                  if(cells[colIndex].innerHTML !== ""){
+                                      cells[colIndex].innerHTML += "<br>" + subject + " (" + section + ")";
+                                  } else {
+                                      cells[colIndex].innerHTML = subject + " (" + section + ")";
+                                  }
+
                               }
                           }
                       }
@@ -260,11 +285,23 @@ function loadStaffTimetable(){
       }
   }
 
+  // FILL FREE PERIODS
+  let allCells = table.querySelectorAll("td.empty");
+  allCells.forEach(cell => {
+      if(cell.innerHTML === ""){
+          cell.innerHTML = "FREE";
+          cell.style.color = "gray";
+      }
+  });
+
+  // FINAL OUTPUT
   container.innerHTML = `
     <div class="form-card">
       <h3>${selected} - Timetable</h3>
       ${table.outerHTML}
-    </div>`;
+    </div>
+  `;
+
   showToast("Staff timetable generated successfully");
 }
 
