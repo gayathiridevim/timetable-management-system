@@ -197,21 +197,22 @@ function loadStaffTimetable(){
         for(let d=0; d<grid.length; d++){
           for(let p=0; p<grid[d].length; p++){
 
-            let subject = (grid[d][p] || "").trim().toLowerCase();
-            if(!subject) continue;
+           let cell = (grid[d][p] || "").trim();
+if(!cell) continue;
 
-            // find matching staff
-            let match = staffList.some(s =>
-  s.name.trim().toLowerCase() === selected &&
-  s.subject.trim().toLowerCase() === subject &&
-  section.toLowerCase().includes(s.section.toLowerCase())
-);
+// 🔥 split subject and staff
+let parts = cell.split("|");
 
-            if(match){
-              timetable[days[d]][p] += 
-                (timetable[days[d]][p] ? "<br>" : "") +
-                subject + " (" + section + ")";
-            }
+let subject = parts[0]?.trim().toLowerCase();
+let staffFromTT = parts[1]?.trim().toLowerCase();
+
+// 🔥 match ONLY staff
+if(staffFromTT === selected){
+
+  timetable[days[d]][p] += 
+    (timetable[days[d]][p] ? "<br>" : "") +
+    subject + " (" + section + ")";
+}
 
           }
         }
