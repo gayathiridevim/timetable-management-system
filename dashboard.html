@@ -32,14 +32,26 @@ if(user){
 
 document.body.style.display = "block";
 
-const proUsers = [
-"staff@college.com",
-"hod@college.com",
-"gayathridevi182005@gmail.com"
-];
+const ADMIN_EMAIL = "gayathridevi182005@gmail.com";
 
-if(proUsers.includes(user.email)){
-localStorage.setItem("isProUser","true");
+let email = user.email.trim().toLowerCase();
+
+// ✅ get stored pro users
+let proUsers = JSON.parse(localStorage.getItem("proUsers")) || [];
+
+// ✅ ADMIN ALWAYS PRO
+if(email === ADMIN_EMAIL){
+  if(!proUsers.includes(email)){
+    proUsers.push(email);
+    localStorage.setItem("proUsers", JSON.stringify(proUsers));
+  }
+}
+
+// ✅ FINAL CHECK
+if(proUsers.includes(email)){
+  localStorage.setItem("isProUser","true");
+} else {
+  localStorage.setItem("isProUser","false");
 }
 
 const emailElement = document.getElementById("userEmail");
@@ -186,15 +198,6 @@ window.location.replace("index.html");
 });
 
 }
-
-
-if(localStorage.getItem("isProUser") === null){
-localStorage.setItem("isProUser","false");
-}
-
-
-
-
 function updateDashboardCounts() {
 
 const departments = JSON.parse(localStorage.getItem("departments")) || [];
@@ -235,9 +238,6 @@ updateDashboardCounts();
 
 /* PRO CHECK */
 
-if(localStorage.getItem("isProUser") === null){
-localStorage.setItem("isProUser","false");
-}
 
 function activatePro(){
 localStorage.setItem("isProUser","true");
@@ -246,9 +246,9 @@ localStorage.setItem("isProUser","true");
 </script>
 <script>
 
-var isPro = localStorage.getItem("isProUser");
+var isPro = localStorage.getItem("isProUser") === "true";
 
-if(isPro === "true"){
+if(isPro){
 
 var logo = document.getElementById("logoText");
 var badge = document.getElementById("proBadge");
