@@ -203,6 +203,7 @@ found=true;
 const timetableData=JSON.parse(localStorage.getItem(key));
 
 for(let section in timetableData){
+    if(!section.endsWith("-A")) continue;
 
 const grid=timetableData[section];
 
@@ -345,7 +346,21 @@ typeLabel=sub.type==="Lab"?" (L)":" (T)";
 }
 });
 
-tableHTML+=`<td contenteditable="false">${value}${typeLabel}</td>`;
+if(value){
+  let parts = value.split("|");
+
+  let subject = parts[0] || "";
+  let staff = parts[1] || "";
+
+  tableHTML += `
+    <td contenteditable="false">
+      <div style="font-weight:bold;">${subject.toUpperCase()}</div>
+      <div style="font-size:12px;color:#555;">${staff}</div>
+    </td>
+  `;
+} else {
+  tableHTML += `<td></td>`;
+}
 
 if(j+1===lunchAfter){
 tableHTML+=``;
