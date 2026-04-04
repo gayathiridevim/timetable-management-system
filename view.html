@@ -209,9 +209,9 @@ const grid=timetableData[section];
 let deptKey = section.split("-")[0];
 
 // 🔥 FIX
-let deptName = deptKey.split("_sem_")[0];
-
-let dept = departments.find(d => d.name === deptName) || {};
+let dept = departments.find(d => 
+  (d.name + "_sem_" + d.semester) === deptKey
+) || {};
 
 let startTime = dept.startTime || "09:30";
 let periodMinutes = Number(dept.periodMinutes) || 50;
@@ -331,58 +331,58 @@ tableHTML+=`<td><b>${days[i]}</b></td>`;
 
 let row=grid[i]||[];
 
-for(let j=0;j<periods;j++){
+let actualCol = 0;
 
-let value=row[j]||"";
+for(let j=1;j<=periods;j++){
 
-let subjects=JSON.parse(localStorage.getItem("subjects"))||[];
+  // 🔥 SKIP SNACK COLUMN
+  if(snackAfter && j === snackAfter){
+    continue;
+  }
 
-let typeLabel="";
+  // 🔥 SKIP LUNCH COLUMN
+  if(j === lunchAfter){
+    continue;
+  }
 
-subjects.forEach(sub=>{
-if(sub.name===value){
-typeLabel=sub.type==="Lab"?" (L)":" (T)";
-}
-});
+  let value = row[actualCol] || "";
 
-if(value){
-let parts = value.split("|");
+  if(value){
 
-let subject = parts[0] || "";
-let staff = parts[1] || "";
+    let parts = value.split("|");
 
-// 🔥 check if staff really exists for this section
-let staffList = JSON.parse(localStorage.getItem("staff")) || [];
+    let subject = parts[0] || "";
+    let staff = parts[1] || "";
 
-let sectionLetter = section.split("-")[1]; // A / B / C
+    let staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
-let isValidStaff = staffList.some(s =>
-  s.name.toLowerCase() === staff.toLowerCase() &&
-  s.section === sectionLetter
-);
+    let sectionLetter = section.split("-")[1];
 
-if(isValidStaff){
-  tableHTML += `
-    <td contenteditable="false">
-      <div style="font-weight:bold;">${subject.toUpperCase()}</div>
-      <div style="font-size:12px;color:#555;">${staff}</div>
-    </td>
-  `;
-} else {
-  tableHTML += `
-    <td contenteditable="false">
-      <div style="font-weight:bold;">${subject.toUpperCase()}</div>
-    </td>
-  `;
-}
-} else {
-  tableHTML += `<td></td>`;
-}
+    let isValidStaff = staffList.some(s =>
+      s.name.toLowerCase() === staff.toLowerCase() &&
+      s.section === sectionLetter
+    );
 
-if(j+1===lunchAfter){
-tableHTML+=``;
-}
+    if(isValidStaff){
+      tableHTML += `
+        <td>
+          <div style="font-weight:bold;">${subject.toUpperCase()}</div>
+          <div style="font-size:12px;color:#555;">${staff}</div>
+        </td>
+      `;
+    } else {
+      tableHTML += `
+        <td>
+          <div style="font-weight:bold;">${subject.toUpperCase()}</div>
+        </td>
+      `;
+    }
 
+  } else {
+    tableHTML += `<td></td>`;
+  }
+
+  actualCol++;
 }
 
 tableHTML+="</tr>";
@@ -628,9 +628,6 @@ setTimeout(()=>{toast.remove();},3000);
 loadTimetables();
 /* CHECK PRO STATUS */
 
-if(localStorage.getItem("isProUser") === null){
-localStorage.setItem("isProUser","false");
-}
 </script>
 <script>
 
