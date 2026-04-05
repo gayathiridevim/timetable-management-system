@@ -329,23 +329,63 @@ for(let i=0;i<daysCount;i++){
 tableHTML+="<tr>";
 tableHTML+=`<td><b>${days[i]}</b></td>`;
 
-let row=grid[i]||[];
+let row = grid[i] || [];
+let colIndex = 0;
 
-let actualCol = 0;
+for(let p=1; p<=periods; p++){
 
-for(let j=1;j<=periods;j++){
-
-  // 🔥 SKIP SNACK COLUMN
-  if(snackAfter && j === snackAfter){
+  // ✅ SNACK COLUMN (STATIC)
+  if(snackAfter && p === snackAfter){
     continue;
   }
 
-  // 🔥 SKIP LUNCH COLUMN
-  if(j === lunchAfter){
+  // ✅ LUNCH COLUMN (STATIC)
+  if(p === lunchAfter){
     continue;
   }
 
-  let value = row[actualCol] || "";
+  let value = row[colIndex] || "";
+
+  if(value){
+
+    let parts = value.split("|");
+
+    let subject = parts[0] || "";
+    let staff = parts[1] || "";
+
+    let staffList = JSON.parse(localStorage.getItem("staff")) || [];
+
+    let sectionLetter = section.split("-")[1];
+
+    let isValidStaff = staffList.some(s =>
+      s.name.toLowerCase() === staff.toLowerCase() &&
+      s.section === sectionLetter
+    );
+
+    if(isValidStaff){
+      tableHTML += `
+        <td>
+          <div style="font-weight:bold;">${subject.toUpperCase()}</div>
+          <div style="font-size:12px;color:#555;">${staff}</div>
+        </td>
+      `;
+    } else {
+      tableHTML += `
+        <td>
+          <div style="font-weight:bold;">${subject.toUpperCase()}</div>
+        </td>
+      `;
+    }
+
+  } else {
+    tableHTML += `<td></td>`;
+  }
+
+  colIndex++; // ✅ ONLY increment when actual period used
+}
+
+tableHTML+="</tr>";
+}
 
   if(value){
 
@@ -395,7 +435,6 @@ container.innerHTML+=tableHTML;
 
 }
 }
-}
 
 if(!found){
 
@@ -408,7 +447,6 @@ container.innerHTML=`
 }
 
 detectStaffClash();
-}
 
 
 
