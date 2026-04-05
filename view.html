@@ -337,18 +337,16 @@ let totalCols = periods
     + (snackAfter ? 1 : 0) 
     + 1; // lunch always
 
-for(let j=1;j<=totalCols;j++){
+for(let j=1;j<=periods;j++){
 
     // SNACK COLUMN
     if(snackAfter && j === snackAfter){
         tableHTML += `<td></td>`;
-        continue;
     }
 
     // LUNCH COLUMN
-    if(j === lunchAfter + (snackAfter && snackAfter < lunchAfter ? 1 : 0)){
+    if(j === lunchAfter){
         tableHTML += `<td></td>`;
-        continue;
     }
 
     let value = row[actualCol] || "";
