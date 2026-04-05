@@ -378,7 +378,7 @@ for(let p=1; p<=periods; p++){
     }
 
   } else {
-    tableHTML += `<td></td>`;
+    tableHTML += `<td>-</td>`;
   }
 
   colIndex++; // ✅ ONLY increment when actual period used
@@ -387,47 +387,7 @@ for(let p=1; p<=periods; p++){
 tableHTML+="</tr>";
 }
 
-  if(value){
 
-    let parts = value.split("|");
-
-    let subject = parts[0] || "";
-    let staff = parts[1] || "";
-
-    let staffList = JSON.parse(localStorage.getItem("staff")) || [];
-
-    let sectionLetter = section.split("-")[1];
-
-    let isValidStaff = staffList.some(s =>
-      s.name.toLowerCase() === staff.toLowerCase() &&
-      s.section === sectionLetter
-    );
-
-    if(isValidStaff){
-      tableHTML += `
-        <td>
-          <div style="font-weight:bold;">${subject.toUpperCase()}</div>
-          <div style="font-size:12px;color:#555;">${staff}</div>
-        </td>
-      `;
-    } else {
-      tableHTML += `
-        <td>
-          <div style="font-weight:bold;">${subject.toUpperCase()}</div>
-        </td>
-      `;
-    }
-
-  } else {
-    tableHTML += `<td></td>`;
-  }
-
-  actualCol++;
-}
-
-tableHTML+="</tr>";
-
-}
 
 tableHTML+="</table></div>";
 
@@ -435,8 +395,9 @@ container.innerHTML+=tableHTML;
 
 }
 }
-
+}
 if(!found){
+
 
 container.innerHTML=`
 <div class="form-card">
@@ -448,7 +409,7 @@ container.innerHTML=`
 
 detectStaffClash();
 
-
+}
 
 
 function detectStaffClash(){
@@ -471,15 +432,15 @@ function detectStaffClash(){
                 for(let d=0; d<grid.length; d++){
                     for(let p=0; p<grid[d].length; p++){
 
-                        let subject = grid[d][p];
-                        if(!subject) continue;
+                        let cell = grid[d][p];
+if(!cell) continue;
 
-                        // 🔥 find staff for subject
-                        let staffObj = staffList.find(s => s.subject === subject);
+let parts = cell.split("|");
 
-                        if(!staffObj) continue;
+let subject = parts[0];
+let staffName = parts[1];
 
-                        let staffName = staffObj.name;
+if(!staffName) continue;
 
                         let slot = `${d}-${p}`;
 
@@ -700,13 +661,15 @@ function debugClash(){
                 for(let d=0; d<grid.length; d++){
                     for(let p=0; p<grid[d].length; p++){
 
-                        let subject = grid[d][p];
-                        if(!subject) continue;
+                        let cell = grid[d][p];
+if(!cell) continue;
 
-                        let staffObj = staffList.find(s => s.subject === subject);
-                        if(!staffObj) continue;
+let parts = cell.split("|");
 
-                        let staff = staffObj.name;
+let subject = parts[0];
+let staff = parts[1];
+
+if(!staff) continue;
                         let slot = `${d}-${p}`;
 
                         if(!slotMap[slot]) slotMap[slot] = [];
@@ -744,6 +707,7 @@ function debugClash(){
     }
 
 }
+
 </script>
 </body>
 </html>
