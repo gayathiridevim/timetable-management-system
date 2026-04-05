@@ -335,14 +335,17 @@ let colIndex = 0;
 for(let p=1; p<=periods; p++){
 
   // ✅ SNACK COLUMN (STATIC)
-  if(snackAfter && p === snackAfter){
-    continue;
-  }
+// ✅ SNACK COLUMN (keep column count)
+if(snackAfter && p === snackAfter){
+  tableHTML += `<td></td>`;
+  continue;
+}
 
-  // ✅ LUNCH COLUMN (STATIC)
-  if(p === lunchAfter){
-    continue;
-  }
+// ✅ LUNCH COLUMN (keep column count)
+if(p === lunchAfter){
+  tableHTML += `<td></td>`;
+  continue;
+}
 
   let value = row[colIndex] || "";
 
