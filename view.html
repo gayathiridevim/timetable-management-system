@@ -336,14 +336,17 @@ let actualCol = 0;
 for(let j=1;j<=periods;j++){
 
   // 🔥 SKIP SNACK COLUMN
-  if(snackAfter && j === snackAfter){
+ // SNACK COLUMN
+if(snackAfter && j === snackAfter){
+    tableHTML += `<td></td>`;
     continue;
-  }
+}
 
-  // 🔥 SKIP LUNCH COLUMN
-  if(j === lunchAfter){
+// LUNCH COLUMN
+if(j === lunchAfter){
+    tableHTML += `<td></td>`;
     continue;
-  }
+}
 
   let value = row[actualCol] || "";
 
@@ -687,7 +690,6 @@ function debugClash(){
         }
 
     }
-
     console.log("===== CLASH REPORT =====");
 
     for(let slot in slotMap){
