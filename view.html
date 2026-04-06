@@ -411,15 +411,17 @@ function detectStaffClash(){
                 for(let d=0; d<grid.length; d++){
                     for(let p=0; p<grid[d].length; p++){
 
-                        let subject = grid[d][p];
-                        if(!subject) continue;
+                        let cell = grid[d][p];
+if(!cell) continue;
 
-                        // 🔥 find staff for subject
-                        let staffObj = staffList.find(s => s.subject === subject);
+// ✅ split correctly
+let parts = cell.split("|");
 
-                        if(!staffObj) continue;
+let subject = parts[0] || "";
+let staffName = parts[1] || "";
 
-                        let staffName = staffObj.name;
+// skip if no staff
+if(!staffName) continue;
 
                         let slot = `${d}-${p}`;
 
