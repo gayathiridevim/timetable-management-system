@@ -327,11 +327,11 @@ for(let j=1; j<=periods; j++){
 
 // 🔥 HANDLE SNACK POSITION
 if(snackAfter && j === snackAfter){
-    continue; // ✅ NO extra td
+    continue;
 }
 
 if(j === lunchAfter){
-    continue; // ✅ NO extra td
+    continue;
 }
 
 let value = row[actualCol] ?? "";
@@ -367,7 +367,9 @@ tableHTML += `
 tableHTML += `<td></td>`;
 }
 
-actualCol++;
+if(j !== lunchAfter && (!snackAfter || j !== snackAfter)){
+    actualCol++;
+}
 }
 
 tableHTML+="</tr>";
