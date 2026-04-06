@@ -323,21 +323,18 @@ tableHTML+=`<td><b>${days[i]}</b></td>`;
 let row=grid[i]||[];
 let actualCol = 0;
 
-for(let j=1; j<=periods; j++){
+for(let j=1; j<=periods + (snackAfter ? 1 : 0) + 1; j++){
 
 // 🔥 HANDLE SNACK POSITION
 if(snackAfter && j === snackAfter){
-tableHTML += `<td></td>`;
-continue;
+    continue; // ✅ NO extra td
 }
 
-// 🔥 HANDLE LUNCH POSITION
 if(j === lunchAfter){
-tableHTML += `<td></td>`;
-continue;
+    continue; // ✅ NO extra td
 }
 
-let value = row[actualCol] || "";
+let value = row[actualCol] ?? "";
 
 if(value){
 
