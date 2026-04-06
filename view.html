@@ -327,11 +327,14 @@ for(let j=1; j<=periods; j++){
 
 // 🔥 HANDLE SNACK POSITION
 if(snackAfter && j === snackAfter){
-    continue; // ❌ don't add extra td
+tableHTML += `<td></td>`;
+continue;
 }
 
+// 🔥 HANDLE LUNCH POSITION
 if(j === lunchAfter){
-    continue; // ❌ don't add extra td
+tableHTML += `<td></td>`;
+continue;
 }
 
 let value = row[actualCol] || "";
@@ -411,17 +414,15 @@ function detectStaffClash(){
                 for(let d=0; d<grid.length; d++){
                     for(let p=0; p<grid[d].length; p++){
 
-                        let cell = grid[d][p];
-if(!cell) continue;
+                        let subject = grid[d][p];
+                        if(!subject) continue;
 
-// 🔥 split "MYSQL|hema"
-let parts = cell.split("|");
+                        // 🔥 find staff for subject
+                        let staffObj = staffList.find(s => s.subject === subject);
 
-let subject = parts[0] || "";
-let staffName = parts[1] || "";
+                        if(!staffObj) continue;
 
-// skip if no staff
-if(!staffName) continue;
+                        let staffName = staffObj.name;
 
                         let slot = `${d}-${p}`;
 
