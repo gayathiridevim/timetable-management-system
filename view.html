@@ -321,7 +321,6 @@ tableHTML+="<tr>";
 tableHTML+=`<td><b>${days[i]}</b></td>`;
 
 let row=grid[i]||[];
-let actualCol = 0;
 
 for(let j=1; j<=periods; j++){
 
@@ -334,7 +333,7 @@ if(j === lunchAfter){
     continue;
 }
 
-let value = row[actualCol] ?? "";
+let value = row[j-1] ?? "";
 
 if(value){
 
@@ -367,9 +366,6 @@ tableHTML += `
 tableHTML += `<td></td>`;
 }
 
-if(j !== lunchAfter && (!snackAfter || j !== snackAfter)){
-    actualCol++;
-}
 }
 
 tableHTML+="</tr>";
