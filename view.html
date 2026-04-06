@@ -340,15 +340,53 @@ let totalCols = periods
 for(let j=1;j<=periods;j++){
 
     // SNACK COLUMN
+   for(let j=1;j<=periods;j++){
+
+    // ✅ Skip snack column (handled by header rowspan)
     if(snackAfter && j === snackAfter){
-        tableHTML += `<td></td>`;
+        continue;
     }
 
-    // LUNCH COLUMN
+    // ✅ Skip lunch column (handled by header rowspan)
     if(j === lunchAfter){
+        continue;
+    }
+
+    let value = row[actualCol] || "";
+
+    if(value){
+
+        let parts = value.split("|");
+        let subject = parts[0] || "";
+        let staff = parts[1] || "";
+
+        let staffList = JSON.parse(localStorage.getItem("staff")) || [];
+        let sectionLetter = section.split("-")[1];
+
+        let isValidStaff = staffList.some(s =>
+            s.name.toLowerCase() === staff.toLowerCase() &&
+            s.section === sectionLetter
+        );
+
+        if(isValidStaff){
+            tableHTML += `
+                <td>
+                    <div style="font-weight:bold;">${subject.toUpperCase()}</div>
+                    <div style="font-size:12px;color:#555;">${staff}</div>
+                </td>`;
+        } else {
+            tableHTML += `
+                <td>
+                    <div style="font-weight:bold;">${subject.toUpperCase()}</div>
+                </td>`;
+        }
+
+    } else {
         tableHTML += `<td></td>`;
     }
 
+    actualCol++;
+}
     let value = row[actualCol] || "";
 
     if(value){
