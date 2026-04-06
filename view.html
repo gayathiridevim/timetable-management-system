@@ -208,7 +208,6 @@ const grid=timetableData[section];
 
 let deptKey = section.split("-")[0];
 
-// 🔥 FIX
 let dept = departments.find(d => 
   (d.name + "_sem_" + d.semester) === deptKey
 ) || {};
@@ -280,9 +279,9 @@ style="width:100%;border-collapse:collapse;text-align:center">
 <th>Day</th>
 `;
 
-
 let currentTime = timeToMinutes(startTime);
 
+// ✅ HEADER
 for(let p=1;p<=periods;p++){
 
 let nextTime = currentTime + periodMinutes;
@@ -294,137 +293,87 @@ tableHTML += `<th>P${p}<br><small>${startLabel}-${endLabel}</small></th>`;
 
 currentTime = nextTime;
 
+// SNACK
 if(snackAfter && p == snackAfter){
-
 let snackStart = minutesToTime(currentTime);
-let snackEnd = minutesToTime(currentTime + Number(snackDuration));
+let snackEnd = minutesToTime(currentTime + snackDuration);
 
-tableHTML += `<th rowspan="${daysCount+1}" 
-style="background:#ffffff;font-weight:bold;vertical-align:middle;text-align:center;width:80px;padding:10px;line-height:1.5;">
-SNACK ${snackStart}-${snackEnd}
-</th>`;
-
-currentTime += Number(snackDuration);
-
+tableHTML += `<th rowspan="${daysCount+1}" style="font-weight:bold;">SNACK<br>${snackStart}-${snackEnd}</th>`;
+currentTime += snackDuration;
 }
 
+// LUNCH
 if(p == lunchAfter){
 let lunchStart = minutesToTime(currentTime);
-let lunchEnd = minutesToTime(currentTime + Number(lunchDuration));
+let lunchEnd = minutesToTime(currentTime + lunchDuration);
 
-tableHTML += `<th rowspan="${daysCount+1}" 
-style="background:#ffffff;font-weight:bold;vertical-align:middle;text-align:center;width:80px;padding:10px;line-height:1.5;">
-LUNCH ${lunchStart}-${lunchEnd}
-</th>`;
-currentTime += Number(lunchDuration);
-
+tableHTML += `<th rowspan="${daysCount+1}" style="font-weight:bold;">LUNCH<br>${lunchStart}-${lunchEnd}</th>`;
+currentTime += lunchDuration;
 }
 }
 
 tableHTML+=`</tr>`;
 
-
+// ✅ BODY
 for(let i=0;i<daysCount;i++){
 
 tableHTML+="<tr>";
 tableHTML+=`<td><b>${days[i]}</b></td>`;
 
 let row=grid[i]||[];
-
 let actualCol = 0;
 
-let totalCols = periods 
-    + (snackAfter ? 1 : 0) 
-    + 1; // lunch always
+for(let j=1; j<=periods; j++){
 
-for(let j=1;j<=periods;j++){
-
-    // SNACK COLUMN
-   for(let j=1;j<=periods;j++){
-
-    // ✅ Skip snack column (handled by header rowspan)
-    if(snackAfter && j === snackAfter){
-        continue;
-    }
-
-    // ✅ Skip lunch column (handled by header rowspan)
-    if(j === lunchAfter){
-        continue;
-    }
-
-    let value = row[actualCol] || "";
-
-    if(value){
-
-        let parts = value.split("|");
-        let subject = parts[0] || "";
-        let staff = parts[1] || "";
-
-        let staffList = JSON.parse(localStorage.getItem("staff")) || [];
-        let sectionLetter = section.split("-")[1];
-
-        let isValidStaff = staffList.some(s =>
-            s.name.toLowerCase() === staff.toLowerCase() &&
-            s.section === sectionLetter
-        );
-
-        if(isValidStaff){
-            tableHTML += `
-                <td>
-                    <div style="font-weight:bold;">${subject.toUpperCase()}</div>
-                    <div style="font-size:12px;color:#555;">${staff}</div>
-                </td>`;
-        } else {
-            tableHTML += `
-                <td>
-                    <div style="font-weight:bold;">${subject.toUpperCase()}</div>
-                </td>`;
-        }
-
-    } else {
-        tableHTML += `<td></td>`;
-    }
-
-    actualCol++;
+// 🔥 HANDLE SNACK POSITION
+if(snackAfter && j === snackAfter){
+tableHTML += `<td></td>`;
+continue;
 }
-    let value = row[actualCol] || "";
 
-    if(value){
+// 🔥 HANDLE LUNCH POSITION
+if(j === lunchAfter){
+tableHTML += `<td></td>`;
+continue;
+}
 
-        let parts = value.split("|");
-        let subject = parts[0] || "";
-        let staff = parts[1] || "";
+let value = row[actualCol] || "";
 
-        let staffList = JSON.parse(localStorage.getItem("staff")) || [];
-        let sectionLetter = section.split("-")[1];
+if(value){
 
-        let isValidStaff = staffList.some(s =>
-            s.name.toLowerCase() === staff.toLowerCase() &&
-            s.section === sectionLetter
-        );
+let parts = value.split("|");
+let subject = parts[0] || "";
+let staff = parts[1] || "";
 
-        if(isValidStaff){
-            tableHTML += `
-                <td>
-                    <div style="font-weight:bold;">${subject.toUpperCase()}</div>
-                    <div style="font-size:12px;color:#555;">${staff}</div>
-                </td>`;
-        } else {
-            tableHTML += `
-                <td>
-                    <div style="font-weight:bold;">${subject.toUpperCase()}</div>
-                </td>`;
-        }
+let staffList = JSON.parse(localStorage.getItem("staff")) || [];
+let sectionLetter = section.split("-")[1];
 
-    } else {
-        tableHTML += `<td></td>`;
-    }
+let isValidStaff = staffList.some(s =>
+s.name.toLowerCase() === staff.toLowerCase() &&
+s.section === sectionLetter
+);
 
-    actualCol++;
+if(isValidStaff){
+tableHTML += `
+<td>
+<div style="font-weight:bold;">${subject.toUpperCase()}</div>
+<div style="font-size:12px;color:#555;">${staff}</div>
+</td>`;
+}else{
+tableHTML += `
+<td>
+<div style="font-weight:bold;">${subject.toUpperCase()}</div>
+</td>`;
+}
+
+}else{
+tableHTML += `<td></td>`;
+}
+
+actualCol++;
 }
 
 tableHTML+="</tr>";
-
 }
 
 tableHTML+="</table></div>";
@@ -436,13 +385,7 @@ container.innerHTML+=tableHTML;
 }
 
 if(!found){
-
-container.innerHTML=`
-<div class="form-card">
-<p>No timetable generated yet.</p>
-</div>
-`;
-
+container.innerHTML=`<div class="form-card"><p>No timetable generated yet.</p></div>`;
 }
 
 detectStaffClash();
