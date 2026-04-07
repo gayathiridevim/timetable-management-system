@@ -345,7 +345,7 @@ if (j === lunchPos) continue;
 let offset = 0;
 
 if (snackAfter && j > snackAfter) offset++;
-if (j > lunchPos) offset++;
+if (j > lunchPos) offset = offset;  // basically REMOVE shift
 
 let value = row[j - offset - 1] ?? "";
 
