@@ -334,20 +334,12 @@ for(let j = 1; j <= totalColumns; j++){
 // 🔥 HANDLE SNACK COLUMN
 // SKIP column because header already handled it
 // snack position
-if (snackAfter && j === snackAfter) {
-    tableHTML += `<td></td>`;
-    continue;
-}
+if (snackAfter && j === snackAfter) continue;
 
-// adjust lunch position if snack comes before
 let lunchPos = lunchAfter || -1;
 if (snackAfter && snackAfter <= lunchAfter) lunchPos++;
 
-// lunch position
-if (j === lunchPos) {
-    tableHTML += `<td></td>`;
-    continue;
-}
+if (j === lunchPos) continue;
 
 // calculate real index
 let index = j;
