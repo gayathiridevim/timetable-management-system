@@ -342,12 +342,12 @@ if (snackAfter && snackAfter <= lunchAfter) lunchPos++;
 if (j === lunchPos) continue;
 
 // calculate real index
-let index = j;
+let offset = 0;
 
-if (snackAfter && j > snackAfter) index--;
-if (j > lunchPos) index--;
+if (snackAfter && j > snackAfter) offset++;
+if (j > lunchPos) offset++;
 
-let value = row[index - 1] ?? "";
+let value = row[j - offset - 1] ?? "";
 
 if(value){
 
