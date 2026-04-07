@@ -339,7 +339,10 @@ if (snackAfter && j === snackAfter) continue;
 let lunchPos = lunchAfter || -1;
 if (snackAfter && snackAfter <= lunchAfter) lunchPos++;
 
-if (j === lunchPos) continue;
+if (j === lunchPos) {
+    tableHTML += `<td></td>`;
+    continue;
+}
 
 // calculate real index
 let offset = 0;
