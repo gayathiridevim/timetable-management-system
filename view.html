@@ -328,15 +328,8 @@ for(let j=1; j<=periods; j++){
 // 🔥 HANDLE SNACK POSITION
 // 🔥 HANDLE SNACK COLUMN
 // SKIP column because header already handled it
-if (snackAfter && j === snackAfter) {
-    tableHTML += `<td></td>`;
-    continue;
-}
-
-if (j === lunchAfter) {
-    tableHTML += `<td></td>`;
-    continue;
-}
+if (snackAfter && j === snackAfter) continue;
+if (j === lunchAfter) continue;
 
 let value = row[j-1] ?? "";
 
