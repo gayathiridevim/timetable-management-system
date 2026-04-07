@@ -31,8 +31,12 @@ firebase.auth().onAuthStateChanged(function(user){
 if(user){
 
 document.body.style.display = "block";
-
-const ADMIN_EMAIL = "gayathridevi182005@gmail.com";
+const ADMIN_EMAILS = [
+  "gayathridevi182005@gmail.com",
+  "gvgayu3444@gmail.com",
+  "yourfriend2@gmail.com",
+  "test@gmail.com"
+];
 
 let email = user.email.trim().toLowerCase();
 
