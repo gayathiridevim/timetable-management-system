@@ -299,7 +299,7 @@ if(snackAfter && p == snackAfter){
 let snackStart = minutesToTime(currentTime);
 let snackEnd = minutesToTime(currentTime + snackDuration);
 
-tableHTML += `<th rowspan="${daysCount + 1}" style="font-weight:bold;">SNACK<br>${snackStart}-${snackEnd}</th>`;
+tableHTML += `<th rowspan="${daysCount}" style="font-weight:bold;">SNACK<br>${snackStart}-${snackEnd}</th>`;
 currentTime += snackDuration;
 }
 
@@ -330,10 +330,12 @@ for(let j=1; j<=periods; j++){
 // SKIP column because header already handled it
 if (snackAfter && j === snackAfter) {
     tableHTML += `<td></td>`;
+    continue;
 }
 
 if (j === lunchAfter) {
     tableHTML += `<td></td>`;
+    continue;
 }
 
 let value = row[j-1] ?? "";
