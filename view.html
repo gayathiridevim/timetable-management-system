@@ -205,7 +205,8 @@ const timetableData=JSON.parse(localStorage.getItem(key));
 for(let section in timetableData){
 
 const grid=timetableData[section];
-
+console.log("SECTION:", section);
+console.log("GRID:", grid);
 let deptKey = section.split("-")[0];
 
 let dept = departments.find(d => 
@@ -298,7 +299,7 @@ if(snackAfter && p == snackAfter){
 let snackStart = minutesToTime(currentTime);
 let snackEnd = minutesToTime(currentTime + snackDuration);
 
-tableHTML += `<th rowspan="${daysCount+1}" style="font-weight:bold;">SNACK<br>${snackStart}-${snackEnd}</th>`;
+tableHTML += `<th rowspan="${daysCount}" style="font-weight:bold;">SNACK<br>${snackStart}-${snackEnd}</th>`;
 currentTime += snackDuration;
 }
 
@@ -307,7 +308,7 @@ if(p == lunchAfter){
 let lunchStart = minutesToTime(currentTime);
 let lunchEnd = minutesToTime(currentTime + lunchDuration);
 
-tableHTML += `<th rowspan="${daysCount+1}" style="font-weight:bold;">LUNCH<br>${lunchStart}-${lunchEnd}</th>`;
+tableHTML += `<th rowspan="${daysCount}" style="font-weight:bold;">LUNCH<br>${lunchStart}-${lunchEnd}</th>`;
 currentTime += lunchDuration;
 }
 }
@@ -325,11 +326,15 @@ let row=grid[i]||[];
 for(let j=1; j<=periods; j++){
 
 // 🔥 HANDLE SNACK POSITION
-if(snackAfter && j === snackAfter){
+// 🔥 HANDLE SNACK COLUMN
+if (snackAfter && j === snackAfter) {
+    tableHTML += `<td style="background:#f1f1f1;font-weight:bold;">SNACK</td>`;
     continue;
 }
 
-if(j === lunchAfter){
+// 🔥 HANDLE LUNCH COLUMN
+if (j === lunchAfter) {
+    tableHTML += `<td style="background:#eaeaea;font-weight:bold;">LUNCH</td>`;
     continue;
 }
 
