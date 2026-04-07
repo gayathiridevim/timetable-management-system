@@ -325,7 +325,12 @@ let row=grid[i]||[];
 
 let totalColumns = periods;
 
-for(let j = 1; j <= periods + 2; j++){
+let extraCols = 0;
+
+if (snackAfter && snackAfter > 0) extraCols++;
+if (lunchAfter && lunchAfter > 0) extraCols++;
+
+for(let j = 1; j <= periods + extraCols; j++){
 
 // 🔥 HANDLE SNACK POSITION
 // 🔥 HANDLE SNACK COLUMN
