@@ -393,8 +393,8 @@ function fixAllClashes(timetable){
 
     let staffList = JSON.parse(localStorage.getItem("staff")) || [];
 
-  let days = timetable[Object.keys(timetable)[0]].length;
-let periods = timetable[Object.keys(timetable)[0]][0].length;
+    let days = timetable[Object.keys(timetable)[0]].length;
+    let periods = timetable[Object.keys(timetable)[0]][0].length;
 
     let changed = true;
 
@@ -404,7 +404,7 @@ let periods = timetable[Object.keys(timetable)[0]][0].length;
 
         let slotMap = {};
 
-        // 🔍 build slot map
+        // 🔍 BUILD SLOT MAP (CORRECT SPLIT)
         for(let sec in timetable){
 
             let grid = timetable[sec];
@@ -412,13 +412,13 @@ let periods = timetable[Object.keys(timetable)[0]][0].length;
             for(let d=0; d<days; d++){
                 for(let p=0; p<periods; p++){
 
-                    let subject = grid[d][p];
-                    if(!subject) continue;
+                    let cell = grid[d][p];
+                    if(!cell) continue;
 
-                    let staffObj = staffList.find(s => s.subject === subject);
-                    if(!staffObj) continue;
+                    let parts = cell.split("|");
+                    let subject = parts[0];
+                    let staff = parts[1];
 
-                    let staff = staffObj.name;
                     let slot = `${d}-${p}`;
 
                     if(!slotMap[slot]) slotMap[slot] = [];
@@ -433,39 +433,39 @@ let periods = timetable[Object.keys(timetable)[0]][0].length;
 
             let arr = slotMap[slot];
 
-            let names = arr.map(x => x.staff);
             let seen = new Set();
 
             arr.forEach(item => {
 
                 if(seen.has(item.staff)){
 
-                    // 🔥 CLASH FOUND → REASSIGN
                     let grid = timetable[item.sec];
-
                     let moved = false;
 
                     for(let d2=0; d2<days; d2++){
                         for(let p2=0; p2<periods; p2++){
 
-                            let newSlot = `${d2}-${p2}`;
-
                             if(grid[d2][p2] === ""){
 
-                                // check staff free
+                                // check staff availability
                                 let clash = false;
 
                                 for(let sec2 in timetable){
-                                    let g2 = timetable[sec2];
+                                    let g2 = timetable[sec2][d2][p2];
 
-                                    if(g2[d2][p2] === item.subject){
-                                        clash = true;
-                                        break;
+                                    if(g2){
+                                        let parts = g2.split("|");
+                                        let staff2 = parts[1];
+
+                                        if(staff2 === item.staff){
+                                            clash = true;
+                                            break;
+                                        }
                                     }
                                 }
 
                                 if(!clash){
-                                    grid[d2][p2] = item.subject;
+                                    grid[d2][p2] = item.subject + "|" + item.staff;
                                     grid[item.d][item.p] = "";
                                     moved = true;
                                     changed = true;
