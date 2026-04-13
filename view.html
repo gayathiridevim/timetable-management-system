@@ -3,677 +3,223 @@
 <head>
 <title>View Timetable</title>
 <link rel="stylesheet" href="style.css">
-<!-- FIREBASE AUTH PROTECTION -->
 <style>
-body{
-display:none;
-}
+    body { display:none; margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; }
+    #timetableContainer { padding: 20px; }
+    .form-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 30px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; table-layout: fixed; }
+    th, td { border: 1px solid #edf2f7; padding: 10px; text-align: center; word-wrap: break-word; }
+    th { background-color: #f8fafc; color: #2d3748; font-weight: 600; font-size: 13px; }
+    .subject-text { font-weight: bold; color: #1a202c; font-size: 13px; }
+    .staff-text { font-size: 11px; color: #e74c3c; margin-top: 4px; font-weight: 700; }
+    .break-cell { background-color: #f1f5f9; color: #64748b; font-weight: bold; font-size: 11px; }
+    .delete-btn { background:#e74c3c; color:white; border:none; padding:6px 15px; border-radius:4px; cursor:pointer; }
 </style>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-
-<script>
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
-  authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
-  projectId: "timetablemanagementsyste-45fd9",
-  storageBucket: "timetablemanagementsyste-45fd9.firebasestorage.app",
-  messagingSenderId: "905343636728",
-  appId: "1:905343636728:web:91124de4d8a8160af5d70d"
-};
-
-firebase.initializeApp(firebaseConfig);
-
-firebase.auth().onAuthStateChanged(function(user){
-
-if(user){
-document.body.style.display = "block";
-}
-else{
-window.location.replace("index.html");
-}
-
-});
-
-</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<style>
-.clash{
-background:#ffdddd;
-border:2px solid red;
-}
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
+    authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
+    projectId: "timetablemanagementsyste-45fd9",
+    storageBucket: "timetablemanagementsyste-45fd9.firebasestorage.app",
+    messagingSenderId: "905343636728",
+    appId: "1:905343636728:web:91124de4d8a8160af5d70d"
+};
+firebase.initializeApp(firebaseConfig);
 
-#userEmail{
-word-break: break-all;
-}
-</style>
-
+firebase.auth().onAuthStateChanged(user => {
+    if(user){ 
+        document.body.style.display = "block"; 
+        const emailBox = document.getElementById("userEmail");
+        if(emailBox) emailBox.innerText = user.email;
+        loadTimetables();
+    } else { 
+        window.location.replace("index.html"); 
+    }
+});
+</script>
 </head>
 
 <body>
-
 <div class="layout">
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1 id="logoText">VELS</h1>
+            <p>Timetable Management System</p>
+        </div>
+        <ul>
+            <li><a href="dashboard.html">Dashboard</a></li>
+            <li><a href="department.html">Department Setup</a></li>
+            <li><a href="subject.html">Subject Management</a></li>
+            <li><a href="staff.html">Staff Management</a></li>
+            <li><a href="section.html">Section Management</a></li>
+            <li><a href="generate.html">Generate Timetable</a></li>
+            <li><a href="view.html" class="active">View Timetable</a></li>
+            <li><a href="guidelines.html">System Guidelines</a></li>
+            <li><a href="faculty.html">Staff Timetable</a></li>
+        </ul>
+        <div class="logout-section">
+            <div class="signed-in"><small>Signed in as</small><p id="userEmail"></p></div>
+            <div class="logout-link" onclick="firebase.auth().signOut()" style="cursor:pointer">⬅ Logout</div>
+        </div>
+    </div>
 
-<div class="sidebar">
-
-<div class="sidebar-header">
-<h1 id="logoText">VELS <span id="proBadge"></span></h1>
-<p>Timetable Management System</p>
+    <div class="content-area">
+        <div class="top-navbar">VELS Faculty Scheduling System</div>
+        <div class="dashboard-header" style="padding:20px;">
+            <h1>View Timetable</h1>
+            <p>Generated timetables for sections</p>
+        </div>
+        <div id="timetableContainer"></div>
+    </div>
 </div>
-
-<ul>
-<li><a href="dashboard.html">Dashboard</a></li>
-<li><a href="department.html">Department Setup</a></li>
-<li><a href="subject.html">Subject Management</a></li>
-<li><a href="staff.html">Staff Management</a></li>
-<li><a href="section.html">Section Management</a></li>
-<li><a href="generate.html">Generate Timetable</a></li>
-<li><a href="view.html">View Timetable</a></li>
-<li><a href="guidelines.html">System Guidelines</a></li>
-<li><a href="faculty.html">Staff Timetable</a></li>
-</ul>
-
-<div class="logout-section">
-
-<div class="signed-in">
-<small>Signed in as</small>
-<p id="userEmail"></p>
-</div>
-
-<div class="logout-link" onclick="logout()">⬅ Logout</div>
-
-</div>
-
-</div>
-
-<div class="content-area">
-
-<div class="top-navbar">
-VELS Faculty Scheduling System
-</div>
-
-<div class="dashboard-header">
-<h1>View Timetable</h1>
-<p>Generated timetables for sections</p>
-</div>
-
-<div id="timetableContainer"></div>
-
-</div>
-</div>
-
 
 <script>
-
-
-
-firebase.auth().onAuthStateChanged(function(user){
-
-if(user){
-
-document.body.style.display = "block";
-
-const proUsers = [
-"staff@college.com",
-"hod@college.com",
-"gayathiridevi182005@gmail.com"
-];
-
-if(proUsers.includes(user.email)){
-localStorage.setItem("isProUser","true");
+function normalize(str) {
+    return str ? str.toString().toLowerCase().replace(/[^a-z0-9]/g, "").trim() : "";
 }
 
-const emailElement = document.getElementById("userEmail");
-
-if(emailElement){
-emailElement.innerText = user.email;
-}
-
-}
-else{
-window.location.replace("index.html");
-}
-
-});
-
-function logout(){
-
-firebase.auth().signOut().then(()=>{
-window.location.replace("index.html");
-});
-
-}
-
-
-if(localStorage.getItem("isProUser") === null){
-localStorage.setItem("isProUser","false");
-}
-
-let originalTables={};
-
-
-function deleteSection(key,section){
-
-let timetableData=JSON.parse(localStorage.getItem(key))||{};
-
-delete timetableData[section];
-
-if(Object.keys(timetableData).length===0){
-localStorage.removeItem(key);
-}else{
-localStorage.setItem(key,JSON.stringify(timetableData));
-}
-
-loadTimetables();
-}
 function timeToMinutes(time){
-let parts=time.split(":");
-return Number(parts[0])*60 + Number(parts[1]);
+    let parts=time.split(":");
+    return Number(parts[0])*60 + Number(parts[1]);
 }
 
 function minutesToTime(mins){
-
-let h=Math.floor(mins/60);
-let m=mins%60;
-
-return h + ":" + m.toString().padStart(2,"0");
-
+    let h=Math.floor(mins/60);
+    let m=mins%60;
+    return h + ":" + m.toString().padStart(2,"0");
 }
 
-
+function deleteSection(key, section) {
+    if(!confirm("Are you sure?")) return;
+    let data = JSON.parse(localStorage.getItem(key)) || {};
+    delete data[section];
+    if (Object.keys(data).length === 0) { localStorage.removeItem(key); }
+    else { localStorage.setItem(key, JSON.stringify(data)); }
+    loadTimetables();
+}
 
 function loadTimetables(){
-
-const container = document.getElementById("timetableContainer");
-container.innerHTML = "";
-
-let departments = JSON.parse(localStorage.getItem("departments")) || [];
-
-let found = false;
-
-for(let key in localStorage){
-
-if(key.startsWith("timetable_")){
-
-found = true;
-
-const timetableData = JSON.parse(localStorage.getItem(key));
-
-for(let section in timetableData){
-
-const grid = timetableData[section];
-
-let deptKey = section.split("-")[0];
-
-let dept = departments.find(d => 
-  (d.name + "_sem_" + d.semester) === deptKey
-) || {};
-
-let startTime = dept.startTime || "09:30";
-let periodMinutes = Number(dept.periodMinutes) || 50;
-
-let lunchAfter = Number(dept.lunchAfter) || Math.floor((dept.periods || 6)/2);
-let lunchDuration = Number(dept.lunchDuration) || 30;
-
-let snackAfter = dept.snackAfter ? Number(dept.snackAfter) : null;
-let snackDuration = dept.snackDuration ? Number(dept.snackDuration) : 0;
-
-let daysCount = dept.days || 5;
-let periods = dept.periods || 6;
-
-const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-
-let tableHTML = `<div class="form-card">
-
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-
-<div>
-<h3>${section}</h3>
-
-<div style="font-size:14px;margin-top:5px;">
-Class In-Charge:
-<input type="text" id="incharge-${section}" placeholder="Enter name">
-
-Department:
-<input type="text" id="dept-${section}" placeholder="Department">
-</div>
-</div>
-
-<div>
-
-<button onclick="editTimetable('${section}')"
-style="background:#3498db;color:white;border:none;padding:5px 12px;border-radius:6px;">
-Edit
-</button>
-
-<span id="controls-${section}" style="display:none">
-
-<button onclick="saveEdit('${section}')"
-style="background:#27ae60;color:white;border:none;padding:4px 8px;border-radius:5px;">✔</button>
-
-<button onclick="cancelEdit('${section}')"
-style="background:#e74c3c;color:white;border:none;padding:4px 8px;border-radius:5px;">✖</button>
-
-</span>
-
-<button onclick="downloadPDF('${section}')"
-style="background:#34495e;color:white;border:none;padding:5px 12px;border-radius:6px;">
-Download PDF
-</button>
-
-<button class="delete-icon-btn"
-onclick="deleteSection('${key}','${section}')">
-Delete
-</button>
-
-</div>
-</div>
-
-<table id="table-${section}" border="1"
-style="width:100%;border-collapse:collapse;text-align:center">
-
-<tr>
-<th>Day</th>
-`;
-
-let currentTime = timeToMinutes(startTime);
-
-// ✅ HEADER
-for(let p=1;p<=periods;p++){
-
-let nextTime = currentTime + periodMinutes;
-
-let startLabel = minutesToTime(currentTime);
-let endLabel = minutesToTime(nextTime);
-
-tableHTML += `<th>P${p}<br><small>${startLabel}-${endLabel}</small></th>`;
-
-currentTime = nextTime;
-
-// SNACK
-if(snackAfter && p == snackAfter){
-let snackStart = minutesToTime(currentTime);
-let snackEnd = minutesToTime(currentTime + snackDuration);
-
-tableHTML += `<th rowspan="${daysCount}">SNACK<br>${snackStart}-${snackEnd}</th>`;
-currentTime += snackDuration;
-}
-
-// LUNCH
-if(p == lunchAfter){
-let lunchStart = minutesToTime(currentTime);
-let lunchEnd = minutesToTime(currentTime + lunchDuration);
-
-tableHTML += `<th rowspan="${daysCount}">LUNCH<br>${lunchStart}-${lunchEnd}</th>`;
-currentTime += lunchDuration;
-}
-}
-
-tableHTML += `</tr>`;
-
-// ✅ BODY (FINAL FIXED)
-for(let i=0;i<daysCount;i++){
-
-tableHTML += "<tr>";
-
-// Day column
-tableHTML += `<td><b>${days[i]}</b></td>`;
-
-let row = grid[i] || [];
-
-// Periods
-for(let j=0;j<periods;j++){
-
-let value = row[j] ?? "";
-
-if(value){
-
-let parts = value.split("|");
-let subject = parts[0] || "";
-let staff = parts[1] || "";
-
-let staffList = JSON.parse(localStorage.getItem("staff")) || [];
-let sectionLetter = section.split("-")[1];
-
-let isValidStaff = staffList.some(s =>
-s.name.toLowerCase() === staff.toLowerCase() &&
-s.section === sectionLetter
-);
-
-if(isValidStaff){
-tableHTML += `
-<td>
-<div style="font-weight:bold;">${subject.toUpperCase()}</div>
-<div style="font-size:12px;color:#555;">${staff}</div>
-</td>`;
-}else{
-tableHTML += `
-<td>
-<div style="font-weight:bold;">${subject.toUpperCase()}</div>
-</td>`;
-}
-
-}else{
-tableHTML += `<td></td>`;
-}
-
-}
-
-tableHTML += "</tr>";
-}
-
-tableHTML += "</table></div>";
-
-container.innerHTML += tableHTML;
-
-}
-}
-}
-
-if(!found){
-container.innerHTML = `<div class="form-card"><p>No timetable generated yet.</p></div>`;
-}
-
-detectStaffClash();
-}
-
-
-function detectStaffClash(){
-
+    const container = document.getElementById("timetableContainer");
+    container.innerHTML = "";
+    
+    let departments = JSON.parse(localStorage.getItem("departments")) || [];
     let staffList = JSON.parse(localStorage.getItem("staff")) || [];
-
-    let slotMap = {}; 
-    // slotMap["0-1"] = ["Ravi","Ravi"]
+    let found = false;
 
     for(let key in localStorage){
-
         if(key.startsWith("timetable_")){
+            found = true;
+            let timetableData;
+            try { timetableData = JSON.parse(localStorage.getItem(key)); } catch(e) { continue; }
+            
+            for(let sectionKey in timetableData){
+                const grid = timetableData[sectionKey];
+                
+               let deptName = "Unknown", secLetter = "", sem = "";
+                if(sectionKey.includes("_sem_")){
+                    let parts = sectionKey.split("_sem_");
+                    deptName = parts[0];
 
-            let t = JSON.parse(localStorage.getItem(key));
-
-            for(let section in t){
-
-                let grid = t[section];
-
-                for(let d=0; d<grid.length; d++){
-                    for(let p=0; p<grid[d].length; p++){
-
-                        let cell = grid[d][p];
-if(!cell) continue;
-
-// ✅ split correctly
-let parts = cell.split("|");
-
-let subject = parts[0] || "";
-let staffName = parts[1] || "";
-
-// skip if no staff
-if(!staffName) continue;
-
-                        let slot = `${d}-${p}`;
-
-                        if(!slotMap[slot]) slotMap[slot] = [];
-
-                        slotMap[slot].push(staffName);
-
-                    }
+                    let subParts = parts[1].split("-");
+                    sem = subParts[0];
+                    secLetter = subParts[1] || "";
                 }
 
-            }
-
-        }
-
-    }
-
-    // 🔥 CHECK DUPLICATES
-    for(let slot in slotMap){
-
-        let arr = slotMap[slot];
-
-        let unique = new Set(arr);
-
-        if(unique.size !== arr.length){
-            showToast("⚠ Staff Clash Detected!");
-            return;
-        }
-
-    }
-
-}
-
-
-function editTimetable(section){
-
-const table=document.querySelector(`#table-${section}`);
-
-originalTables[section]=table.innerHTML;
-
-table.querySelectorAll("td").forEach(cell=>{
-cell.contentEditable=true;
-});
-
-document.getElementById(`controls-${section}`).style.display="inline";
-}
-
-
-function saveEdit(section){
-
-const table=document.querySelector(`#table-${section}`);
-
-table.querySelectorAll("td").forEach(cell=>{
-cell.contentEditable=false;
-});
-
-document.getElementById(`controls-${section}`).style.display="none";
-}
-
-
-function cancelEdit(section){
-
-const table=document.querySelector(`#table-${section}`);
-
-table.innerHTML=originalTables[section];
-
-document.getElementById(`controls-${section}`).style.display="none";
-}
-
-
-
-
-async function downloadPDF(section){
-
-// ✅ FIX 1: Force enable download (no pro block issue)
-const isPro = true;
-
-const incharge=document.getElementById(`incharge-${section}`).value;
-const dept=document.getElementById(`dept-${section}`).value;
-
-if(incharge.trim()==""||dept.trim()==""){
-showToast("Enter Class In-Charge and Department first");
-return;
-}
-
-const timetable=document.querySelector(`#table-${section}`);
-
-const canvas=await html2canvas(timetable);
-
-const imgData=canvas.toDataURL("image/png");
-
-const {jsPDF}=window.jspdf;
-
-const pdf=new jsPDF("landscape","mm","a4");
-
-const pageWidth=pdf.internal.pageSize.getWidth()-20;
-
-const imgHeight=canvas.height*pageWidth/canvas.width;
-
-pdf.text(`Department: ${dept}`,10,10);
-pdf.text(`Class In-Charge: ${incharge}`,10,18);
-
-pdf.addImage(imgData,"PNG",10,25,pageWidth,imgHeight);
-
-
-/* -------- STAFF ALLOCATION (FINAL PERFECT FIX) -------- */
-
-const allStaff = JSON.parse(localStorage.getItem("staff")) || [];
-
-// ✅ GET SUBJECTS FROM CURRENT TABLE (100% accurate)
-const table = document.querySelector(`#table-${section}`);
-
-let usedSubjects = new Set();
-
-table.querySelectorAll("td").forEach(td => {
-    let text = td.innerText.trim();
-
-    if(text){
-        let subject = text.replace("(T)","").replace("(L)","").trim();
-        usedSubjects.add(subject);
-    }
-});
-
-// ✅ FILTER STAFF ONLY FOR THIS SECTION SUBJECTS
-const secLetter = section.split("-")[1]; // A / B / C
-
-const staffData = allStaff.filter(staff => {
-    return (
-        usedSubjects.has(staff.subject) &&
-        staff.section === secLetter
-    );
-});
-let y = imgHeight + 35;
-
-pdf.setFontSize(14);
-pdf.text("Staff Allocation",10,y);
-
-y += 8;
-
-pdf.setFontSize(11);
-
-// ✅ IF NO STAFF → SHOW MESSAGE
-if(staffData.length === 0){
-    pdf.text("No staff allocated",10,y);
-}else{
-    staffData.forEach(staff=>{
-        pdf.text(`${staff.subject} - ${staff.name}`,10,y);
-        y += 6;
-    });
-}
-
-
-/* SAVE PDF */
-
-pdf.save(section+"_timetable.pdf");
-
-showToast("Timetable Downloaded Successfully");
-
-}
-
-
-/* TOAST */
-
-function showToast(message){
-
-const toast=document.createElement("div");
-
-toast.innerText=message;
-
-toast.style.position="fixed";
-toast.style.bottom="20px";
-toast.style.right="20px";
-toast.style.background="#fff";
-toast.style.padding="12px 18px";
-toast.style.borderRadius="8px";
-toast.style.boxShadow="0 4px 10px rgba(0,0,0,0.2)";
-toast.style.fontSize="14px";
-
-document.body.appendChild(toast);
-
-setTimeout(()=>{toast.remove();},3000);
-
-}
-
-loadTimetables();
-/* CHECK PRO STATUS */
-
-</script>
-<script>
-
-var isPro = localStorage.getItem("isProUser");
-
-if(isPro === "true"){
-
-var logo = document.getElementById("logoText");
-var badge = document.getElementById("proBadge");
-
-if(logo && badge){
-logo.classList.add("pro-user");
-badge.innerText = "PRO";
-}
-
-}
-function debugClash(){
-
-    let staffList = JSON.parse(localStorage.getItem("staff")) || [];
-    let slotMap = {};
-
-    for(let key in localStorage){
-
-        if(key.startsWith("timetable_")){
-
-            let t = JSON.parse(localStorage.getItem(key));
-
-            for(let sec in t){
-
-                let grid = t[sec];
-
-                for(let d=0; d<grid.length; d++){
-                    for(let p=0; p<grid[d].length; p++){
-
-                        let subject = grid[d][p];
-                        if(!subject) continue;
-
-                        let staffObj = staffList.find(s => s.subject === subject);
-                        if(!staffObj) continue;
-
-                        let staff = staffObj.name;
-                        let slot = `${d}-${p}`;
-
-                        if(!slotMap[slot]) slotMap[slot] = [];
-
-                        slotMap[slot].push({
-                            staff,
-                            section: sec,
-                            subject
-                        });
-
-                    }
+                let dept = departments.find(d => normalize(d.name) === normalize(deptName)) || {};
+                
+                let startTime = dept.startTime || "09:30";
+                let periodMin = Number(dept.periodMinutes) || 50;
+                let lunchAfter = Number(dept.lunchAfter) || 3;
+                let lunchDur = Number(dept.lunchDuration) || 30;
+                let snackAfter = dept.snackAfter ? Number(dept.snackAfter) : null;
+                let snackDur = Number(dept.snackDuration) || 15;
+                let daysCount = Number(dept.days) || 5;
+                let periods = Number(dept.periods) || 6;
+                const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+
+                let tableHTML = `<div class="form-card">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px;">
+                        <h2 style="margin:0;">${sectionKey}</h2>
+                        <div style="display:flex; gap:8px;">
+                            <button onclick="editTimetable('${sectionKey}')" style="background:#3498db;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">Edit</button>
+                            <span id="controls-${sectionKey}" style="display:none"><button onclick="saveEdit('${sectionKey}')" style="background:#27ae60;color:white;border:none;padding:6px 12px;border-radius:4px;">✔</button></span>
+                            <button onclick="downloadPDF('${sectionKey}')" style="background:#34495e;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">PDF</button>
+                            <button class="delete-btn" onclick="deleteSection('${key}','${sectionKey}')">Delete</button>
+                        </div>
+                    </div>
+                    <table id="table-${sectionKey}">
+                        <thead><tr><th>Day</th>`;
+
+                let currentTime = timeToMinutes(startTime);
+                for(let p = 1; p <= periods; p++){
+                    let end = currentTime + periodMin;
+                    tableHTML += `<th>P${p}<br><small>${minutesToTime(currentTime)}-${minutesToTime(end)}</small></th>`;
+                    currentTime = end;
+                    if(p === lunchAfter) { tableHTML += `<th class="break-cell">LUNCH</th>`; currentTime += lunchDur; }
+                    if(snackAfter && p === snackAfter) { tableHTML += `<th class="break-cell">SNACK</th>`; currentTime += snackDur; }
                 }
+                tableHTML += "</tr></thead><tbody>";
 
+                for(let i=0; i < daysCount; i++){
+                    tableHTML += `<tr><td><b>${days[i]}</b></td>`;
+                    let row = grid[i] || [];
+                    
+                    for(let j=1; j <= periods; j++){
+                        let cellData = row[j-1] || "";
+                        let subj = "";
+                        let staffName = "";
+                        
+                        if(cellData) {
+                            try {
+                                let parsed = JSON.parse(cellData);
+                                subj = parsed.subject;
+                                staffName = parsed.staff;
+                            } catch(e) {
+                                let parts = cellData.split("|");
+                                subj = parts[0] || "";
+                                staffName = parts[1] || "";
+                            }
+                        }
+
+                        tableHTML += `<td>
+                            <div class="subject-text">${subj ? subj.toUpperCase() : "-"}</div>
+                            <div class="staff-text">${staffName || "-"}</div>
+                        </td>`;
+                        
+                        if(j === lunchAfter) tableHTML += `<td class="break-cell"></td>`;
+                        if(snackAfter && j === snackAfter) tableHTML += `<td class="break-cell"></td>`;
+                    }
+                    tableHTML += "</tr>";
+                }
+                tableHTML += "</tbody></table></div>";
+                container.innerHTML += tableHTML;
             }
-
         }
-
     }
-    console.log("===== CLASH REPORT =====");
+    if(!found) container.innerHTML = "<div class='form-card'>No timetables found.</div>";
+}
 
-    for(let slot in slotMap){
+function editTimetable(sec){
+    document.querySelectorAll(`#table-${sec} td`).forEach(td => td.contentEditable = true);
+    document.getElementById(`controls-${sec}`).style.display = "inline";
+}
 
-        let arr = slotMap[slot];
+function saveEdit(sec){
+    document.querySelectorAll(`#table-${sec} td`).forEach(td => td.contentEditable = false);
+    document.getElementById(`controls-${sec}`).style.display = "none";
+}
 
-        let names = arr.map(x => x.staff);
-        let unique = new Set(names);
-
-        if(unique.size !== names.length){
-
-            console.log("❌ CLASH at slot:", slot);
-            console.table(arr);
-        }
-
-    }
-
+async function downloadPDF(sec){
+    const canvas = await html2canvas(document.querySelector(`#table-${sec}`));
+    const pdf = new jspdf.jsPDF("l", "mm", "a4");
+    pdf.addImage(canvas.toDataURL("image/png"), 'PNG', 10, 25, 275, 0);
+    pdf.save(sec + ".pdf");
 }
 </script>
 </body>

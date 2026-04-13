@@ -1,495 +1,293 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Generate Timetable</title>
-<link rel="stylesheet" href="style.css">
+    <title>Generate Timetable</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { display: none; }
+        #userEmail { word-break: break-all; }
+    </style>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
-<style>
-body{
-display:none;
-}
-</style>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
+            authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
+            projectId: "timetablemanagementsyste-45fd9",
+            storageBucket: "timetablemanagementsyste-45fd9.firebasestorage.app",
+            messagingSenderId: "905343636728",
+            appId: "1:905343636728:web:91124de4d8a8160af5d70d"
+        };
 
-<script>
+        firebase.initializeApp(firebaseConfig);
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBZK3KuMKsoLV99qg4t6djSCyVu91gdan4",
-  authDomain: "timetablemanagementsyste-45fd9.firebaseapp.com",
-  projectId: "timetablemanagementsyste-45fd9",
-  storageBucket: "timetablemanagementsyste-45fd9.firebasestorage.app",
-  messagingSenderId: "905343636728",
-  appId: "1:905343636728:web:91124de4d8a8160af5d70d"
-};
-
-firebase.initializeApp(firebaseConfig);
-
-firebase.auth().onAuthStateChanged(function(user){
-
-if(user){
-
-document.body.style.display = "block";
-
-const proUsers = [
-"staff@college.com",
-"hod@college.com",
-"gayathiridevi182005@gmail.com"
-];
-
-if(proUsers.includes(user.email)){
-localStorage.setItem("isProUser","true");
-}
-
-const emailElement = document.getElementById("userEmail");
-
-if(emailElement){
-emailElement.innerText = user.email;
-}
-
-}
-else{
-window.location.replace("index.html");
-}
-
-});
-
-</script>
-<style>
-#userEmail{
-word-break: break-all;
-}
-</style>
+        firebase.auth().onAuthStateChanged(function(user){
+            if(user){
+                document.body.style.display = "block";
+                const proUsers = ["staff@college.com", "hod@college.com", "gayathiridevi182005@gmail.com"];
+                if(proUsers.includes(user.email)){
+                    localStorage.setItem("isProUser","true");
+                }
+                const emailElement = document.getElementById("userEmail");
+                if(emailElement) emailElement.innerText = user.email;
+            } else {
+                window.location.replace("index.html");
+            }
+        });
+    </script>
 </head>
 
 <body>
-
-<div class="layout">
-
-<!-- SIDEBAR -->
-<div class="sidebar">
-
-<div class="sidebar-header">
-<h1 id="logoText">VELS <span id="proBadge"></span></h1>
-<p>Timetable Management System</p>
-</div>
-
-<ul>
-<li><a href="dashboard.html">Dashboard</a></li>
-<li><a href="department.html">Department Setup</a></li>
-<li><a href="subject.html">Subject Management</a></li>
-<li><a href="staff.html">Staff Management</a></li>
-<li><a href="section.html">Section Management</a></li>
-<li><a href="generate.html">Generate Timetable</a></li>
-<li><a href="view.html">View Timetable</a></li>
-<li><a href="guidelines.html">System Guidelines</a></li>
-<li><a href="faculty.html">Staff Timetable</a></li>
-</ul>
-
-<div class="logout-section">
-<div class="signed-in">
-<small>Signed in as</small>
-<p id="userEmail"></p>
-</div>
-<div class="logout-link" onclick="logout()">⬅ Logout</div>
-</div>
-
-</div>
-
-
-<!-- CONTENT -->
-<div class="content-area">
-
-<div class="top-navbar">
-VELS Faculty Scheduling System
-</div>
-
-<div class="dashboard-header">
-<h1>Generate Timetable</h1>
-<p>Automatically generate conflict-free timetables</p>
-</div>
-
-<div class="form-card">
-
-<h3>Select Department</h3>
-
-<select id="departmentSelect" style="width:100%; padding:10px; border-radius:8px;">
-<option value="">Select Department</option>
-</select>
-
-<div id="summaryBox" style="margin-top:20px;"></div>
-
-<button class="add-btn" style="margin-top:20px;" onclick="generateTimetable()">
-Generate Timetable
-</button>
-
-<div id="successMsg" style="margin-top:20px;color:green;font-weight:600;"></div>
-
-</div>
-
-</div>
-</div>
-
-<div id="toast" class="toast"></div>
-
-<script>
-
-/* PAGE LOAD */
-
-document.addEventListener("DOMContentLoaded", function(){
-
-firebase.auth().onAuthStateChanged(function(user){
-
-if(user){
-
-if(user.email === "gayathridevi182005@gmail.com"){
-document.getElementById("userEmail").innerText = "Admin";
-}
-else{
-document.getElementById("userEmail").innerText = user.email;
-}
-
-}
-
-});
-
-loadDepartments();
-
-document.getElementById("departmentSelect")
-.addEventListener("change", showDepartmentDetails);
-
-});
-
-loadDepartments();
-
-/* dropdown change event */
-document.getElementById("departmentSelect")
-.addEventListener("change", showDepartmentDetails);
-
-
-
-
-
-function loadDepartments(){
-
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
-const select = document.getElementById("departmentSelect");
-
-
-select.innerHTML = `<option value="">Select Department</option>`;
-
-departments.forEach(dep => {
-
-const key = dep.name + "_sem_" + dep.semester;
-
-const option = document.createElement("option");
-
-option.value = key;
-option.textContent = dep.name + " — Sem " + dep.semester;
-
-select.appendChild(option);
-
-});
-
-}
-
-
-
-
-function showDepartmentDetails(){
-
-const selected = document.getElementById("departmentSelect").value;
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
-const box = document.getElementById("summaryBox");
-
-if(!selected){
-box.innerHTML = "";
-return;
-}
-
-const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
-
-if(!dep) return;
-
-box.innerHTML = `
-<div style="background:#f7f7f7;padding:15px;border-radius:8px;line-height:1.6;">
-<b>Department:</b> ${dep.name} — Semester ${dep.semester}<br>
-<b>Working Days:</b> ${dep.days}<br>
-<b>Periods per Day:</b> ${dep.periods}<br>
-<b>Sections:</b> ${dep.sections}<br>
-<b>Start Time:</b> ${dep.startTime || "Default"}<br>
-<b>Minutes per Period:</b> ${dep.periodMinutes || "Default"}<br>
-<b>Lunch After Period:</b> ${dep.lunchAfter || "Default"}<br>
-<b>Lunch Duration:</b> ${dep.lunchDuration || "Default"} minutes<br>
-<b>Snack After Period:</b> ${dep.snackAfter || "None"}<br>
-<b>Snack Duration:</b> ${dep.snackDuration || "None"} minutes
-</div>
-`;
-
-}
-
-
-
-
-function generateTimetable(){
-
-    const selectedDept = document.getElementById("departmentSelect").value;
-
-    if(!selectedDept){
-        showToast("Select department");
-        return;
-    }
-
-    const sectionsKey = "sections_" + selectedDept;
-    const rawSections = JSON.parse(localStorage.getItem(sectionsKey)) || [];
-
-    const sections = rawSections.map(sec => ({
-        name: sec.split("-")[1],
-        department: sec.split("-")[0]
-    }));
-
-    const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-    const staffList = JSON.parse(localStorage.getItem("staff")) || [];
-
-    const deptSubjects = subjects.filter(s =>
-        selectedDept.toLowerCase().includes(s.dept.toLowerCase())
-    );
-
-// 🔥 GET DEPARTMENT DATA (ADD THIS HERE)
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
-
-let deptData = departments.find(d =>
-    (d.name + "_sem_" + d.semester) === selectedDept
-);
-
-// 🔥 REPLACE STATIC VALUES
-const days = deptData ? Number(deptData.days) : 5;
-const periods = deptData ? Number(deptData.periods) : 6;
-
-    let timetable = {};
-    let staffBusy = {};
-
-    let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
-
-    sections.forEach(section => {
-
-        let grid = Array.from({length: days}, () => Array(periods).fill(""));
-        let subjectQueue = [];
-
-        // 🔥 create subject queue
-        deptSubjects.forEach(sub=>{
-            for(let i=0;i<sub.credits;i++){
-                subjectQueue.push(sub.name);
-            }
+    <div class="layout">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1 id="logoText">VELS <span id="proBadge"></span></h1>
+                <p>Timetable Management System</p>
+            </div>
+            <ul>
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="department.html">Department Setup</a></li>
+                <li><a href="subject.html">Subject Management</a></li>
+                <li><a href="staff.html">Staff Management</a></li>
+                <li><a href="section.html">Section Management</a></li>
+                <li><a href="generate.html">Generate Timetable</a></li>
+                <li><a href="view.html">View Timetable</a></li>
+                <li><a href="guidelines.html">System Guidelines</a></li>
+                <li><a href="faculty.html">Staff Timetable</a></li>
+            </ul>
+            <div class="logout-section">
+                <div class="signed-in">
+                    <small>Signed in as</small>
+                    <p id="userEmail"></p>
+                </div>
+                <div class="logout-link" onclick="logout()">⬅ Logout</div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="top-navbar">VELS Faculty Scheduling System</div>
+            <div class="dashboard-header">
+                <h1>Generate Timetable</h1>
+                <p>Automatically generate conflict-free timetables</p>
+            </div>
+            <div class="form-card">
+                <h3>Select Department</h3>
+                <select id="departmentSelect" style="width:100%; padding:10px; border-radius:8px;">
+                    <option value="">Select Department</option>
+                </select>
+                <div id="summaryBox" style="margin-top:20px;"></div>
+                <button class="add-btn" style="margin-top:20px;" onclick="generateTimetable()">Generate Timetable</button>
+                <div id="successMsg" style="margin-top:20px;color:green;font-weight:600;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function(){
+            firebase.auth().onAuthStateChanged(function(user){
+                if(user){
+                    document.getElementById("userEmail").innerText = (user.email === "gayathridevi182005@gmail.com") ? "Admin" : user.email;
+                }
+            });
+            loadDepartments();
+            document.getElementById("departmentSelect").addEventListener("change", showDepartmentDetails);
         });
-subjectQueue.sort(() => Math.random() - 0.5);
-        let index = 0;
 
-        for(let d=0; d<days; d++){
-            for(let p=0; p<periods; p++){
-
-                let attempts = 0;
-
-                while(attempts < subjectQueue.length){
-
-                    let subject = subjectQueue[index % subjectQueue.length];
-
-                    let staffObj = staffList.find(s => s.subject === subject);
-                    let staff = staffObj ? staffObj.name : "Staff";
-
-                    let slot = `${d}-${p}`;
-
-                    if(!staffBusy[staff]) staffBusy[staff] = [];
-
-                    if(
-    !staffBusy[staff].includes(slot) &&
-    !(p > 0 && grid[d][p-1] === subject) &&     
-    !(d > 0 && grid[d-1][p] === subject)      
-){
-
-                        grid[d][p] = subject + "|" + staff;
-                        staffBusy[staff].push(slot);
-
-                        index++;
-                        break;
-                    }
-
-                    index++;
-                    attempts++;
-                }
-
-                // fallback (rare)
-                if(grid[d][p] === ""){
-                    let subject = subjectQueue[index % subjectQueue.length];
-let staffObj = staffList.find(s => s.subject === subject);
-let staff = staffObj ? staffObj.name : "Staff";
-
-grid[d][p] = subject + "|" + staff;
-                    index++;
-                }
-
-            }
+        function loadDepartments(){
+            const departments = JSON.parse(localStorage.getItem("departments")) || [];
+            const select = document.getElementById("departmentSelect");
+            select.innerHTML = `<option value="">Select Department</option>`;
+            departments.forEach(dep => {
+                const key = dep.name + "_sem_" + dep.semester;
+                const option = document.createElement("option");
+                option.value = key;
+                option.textContent = dep.name + " — Sem " + dep.semester;
+                select.appendChild(option);
+            });
         }
 
-        timetable[`${cleanKey}-${section.name}`] = grid;
-
-});
-
-    timetable = fixAllClashes(timetable);
-
-localStorage.setItem(`timetable_${cleanKey}`, JSON.stringify(timetable));
-
-    showToast("Timetable generated successfully");
-}
-
-
-function showToast(message){
-
-const toast = document.getElementById("toast");
-
-toast.innerText = message;
-
-toast.classList.add("show");
-
-setTimeout(()=>{
-toast.classList.remove("show");
-},3000);
-
-}
-
-
-
-
-function logout(){
-
-firebase.auth().signOut().then(()=>{
-window.location.replace("index.html");
-});
-
-}
-
-
-if(localStorage.getItem("isProUser") === null){
-localStorage.setItem("isProUser","false");
-}
-</script>
-<script>
-
-var isPro = localStorage.getItem("isProUser");
-
-if(isPro === "true"){
-
-var logo = document.getElementById("logoText");
-var badge = document.getElementById("proBadge");
-
-if(logo && badge){
-logo.classList.add("pro-user");
-badge.innerText = "PRO";
-}
-
-}
-
-function fixAllClashes(timetable){
-
-    let staffList = JSON.parse(localStorage.getItem("staff")) || [];
-
-    let days = timetable[Object.keys(timetable)[0]].length;
-    let periods = timetable[Object.keys(timetable)[0]][0].length;
-
-    let changed = true;
-
-    while(changed){
-
-        changed = false;
-
-        let slotMap = {};
-
-        // 🔍 BUILD SLOT MAP (CORRECT SPLIT)
-        for(let sec in timetable){
-
-            let grid = timetable[sec];
-
-            for(let d=0; d<days; d++){
-                for(let p=0; p<periods; p++){
-
-                    let cell = grid[d][p];
-                    if(!cell) continue;
-
-                    let parts = cell.split("|");
-                    let subject = parts[0];
-                    let staff = parts[1];
-
-                    let slot = `${d}-${p}`;
-
-                    if(!slotMap[slot]) slotMap[slot] = [];
-
-                    slotMap[slot].push({sec, d, p, staff, subject});
-                }
-            }
+        function showDepartmentDetails(){
+            const selected = document.getElementById("departmentSelect").value;
+            const departments = JSON.parse(localStorage.getItem("departments")) || [];
+            const box = document.getElementById("summaryBox");
+            if(!selected){ box.innerHTML = ""; return; }
+            const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
+            if(!dep) return;
+            box.innerHTML = `<div style="background:#f7f7f7;padding:15px;border-radius:8px;line-height:1.6;">
+                <b>Department:</b> ${dep.name} — Semester ${dep.semester}<br>
+                <b>Working Days:</b> ${dep.days} | <b>Periods:</b> ${dep.periods}<br>
+                <b>Sections:</b> ${dep.sections}
+            </div>`;
         }
 
-        // 🔥 FIX CLASHES
-        for(let slot in slotMap){
+        function generateTimetable(){
+            const selectedDept = document.getElementById("departmentSelect").value;
+            if(!selectedDept){ showToast("Select department"); return; }
 
-            let arr = slotMap[slot];
+            const sectionsKey = "sections_" + selectedDept;
+            const rawSections = JSON.parse(localStorage.getItem(sectionsKey)) || [];
+            const sections = rawSections.map(sec => ({ name: sec.split("-")[1], department: sec.split("-")[0] }));
+            const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+            const staffList = JSON.parse(localStorage.getItem("staff")) || [];
+            const departments = JSON.parse(localStorage.getItem("departments")) || [];
 
-            let seen = new Set();
+            let deptData = departments.find(d => (d.name + "_sem_" + d.semester) === selectedDept);
+            const days = deptData ? Number(deptData.days) : 5;
+            const periods = deptData ? Number(deptData.periods) : 6;
+            const targetDept = selectedDept.split("_sem_")[0];
+            const targetSem = selectedDept.split("_sem_")[1];
 
-            arr.forEach(item => {
+            // Filter subjects strictly by Dept and Sem
+            const deptSubjects = subjects.filter(s => s.dept.toLowerCase() === targetDept.toLowerCase() && s.sem == targetSem);
 
-                if(seen.has(item.staff)){
+            let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
 
-                    let grid = timetable[item.sec];
-                    let moved = false;
-
-                    for(let d2=0; d2<days; d2++){
-                        for(let p2=0; p2<periods; p2++){
-
-                            if(grid[d2][p2] === ""){
-
-                                // check staff availability
-                                let clash = false;
-
-                                for(let sec2 in timetable){
-                                    let g2 = timetable[sec2][d2][p2];
-
-                                    if(g2){
-                                        let parts = g2.split("|");
-                                        let staff2 = parts[1];
-
-                                        if(staff2 === item.staff){
-                                            clash = true;
-                                            break;
+            // --- 1. BUILD GLOBAL STAFF BUSY MAP ---
+            let globalStaffBusy = {}; 
+            for(let key in localStorage){
+                if(key.startsWith("timetable_") && key !== `timetable_${cleanKey}`){
+                    try {
+                        let existingData = JSON.parse(localStorage.getItem(key));
+                        for(let secKey in existingData){
+                            let grid = existingData[secKey];
+                            for(let d=0; d<grid.length; d++){
+                                for(let p=0; p<grid[d].length; p++){
+                                    if(grid[d][p]){
+                                        let cellData = JSON.parse(grid[d][p]);
+                                        if(cellData.staff && cellData.staff !== "Unassigned"){
+                                            if(!globalStaffBusy[cellData.staff]) globalStaffBusy[cellData.staff] = [];
+                                            globalStaffBusy[cellData.staff].push(`${d}-${p}`);
                                         }
                                     }
                                 }
+                            }
+                        }
+                    } catch(e) { console.error("Parse error:", e); }
+                }
+            }
 
-                                if(!clash){
-                                    grid[d2][p2] = item.subject + "|" + item.staff;
-                                    grid[item.d][item.p] = "";
-                                    moved = true;
-                                    changed = true;
+            let timetable = {};
+            let generationSuccess = true;
+
+            sections.forEach(section => {
+                let subjectQueue = [];
+                deptSubjects.forEach(sub => {
+                    for(let i=0; i<sub.credits; i++){
+                        subjectQueue.push({ name: sub.name, dept: sub.dept, sem: sub.sem });
+                    }
+                });
+
+                let bestGrid = null;
+                let success = false;
+                let maxAttempts = 150; // High retry count for tight schedules
+
+                // 2. RETRY LOOP FOR FLAWLESS PLACEMENT
+                for(let attempt=0; attempt<maxAttempts; attempt++) {
+                    let grid = Array.from({length: days}, () => Array(periods).fill(""));
+                    let tempStaffBusy = JSON.parse(JSON.stringify(globalStaffBusy)); // Copy global state
+                    let localQueue = [...subjectQueue].sort(() => Math.random() - 0.5); // Randomize placement
+                    let allPlaced = true;
+
+                    for(let subObj of localQueue) {
+                        let staffObj = staffList.find(s => 
+                            s.subject.toLowerCase() === subObj.name.toLowerCase() &&
+                            s.dept.toLowerCase() === targetDept.toLowerCase() &&
+                            s.section.toLowerCase() === section.name.toLowerCase()
+                        );
+                        let staffName = staffObj ? staffObj.name : "Unassigned";
+
+                        let freeSlots = [];
+                        for(let d=0; d<days; d++){
+                            for(let p=0; p<periods; p++){
+                                if(grid[d][p] === "") freeSlots.push({d, p});
+                            }
+                        }
+                        freeSlots.sort(() => Math.random() - 0.5); // Randomize slot picking
+
+                        let placed = false;
+                        
+                        // Pass 1: Strict - Avoid back-to-back same subjects AND respect staff availability
+                        for(let slot of freeSlots){
+                            let slotKey = `${slot.d}-${slot.p}`;
+                            let staffIsBusy = tempStaffBusy[staffName] && tempStaffBusy[staffName].includes(slotKey);
+                            let isBackToBack = (slot.p > 0 && grid[slot.d][slot.p-1].includes(subObj.name));
+
+                            if(!staffIsBusy && !isBackToBack && staffName !== "Unassigned") {
+                                grid[slot.d][slot.p] = JSON.stringify({
+                                    subject: subObj.name, staff: staffName, dept: targetDept, sem: targetSem, section: section.name
+                                });
+                                if(!tempStaffBusy[staffName]) tempStaffBusy[staffName] = [];
+                                tempStaffBusy[staffName].push(slotKey);
+                                placed = true;
+                                break;
+                            }
+                        }
+
+                        // Pass 2: Relaxed - Allow back-to-back if necessary, but STRICTLY enforce staff availability
+                        if(!placed){
+                            for(let slot of freeSlots){
+                                let slotKey = `${slot.d}-${slot.p}`;
+                                let staffIsBusy = tempStaffBusy[staffName] && tempStaffBusy[staffName].includes(slotKey);
+
+                                if(!staffIsBusy && staffName !== "Unassigned") {
+                                    grid[slot.d][slot.p] = JSON.stringify({
+                                        subject: subObj.name, staff: staffName, dept: targetDept, sem: targetSem, section: section.name
+                                    });
+                                    if(!tempStaffBusy[staffName]) tempStaffBusy[staffName] = [];
+                                    tempStaffBusy[staffName].push(slotKey);
+                                    placed = true;
                                     break;
                                 }
                             }
-
                         }
-                        if(moved) break;
+
+                        if(!placed) {
+                            allPlaced = false;
+                            break; 
+                        }
                     }
 
-                } else {
-                    seen.add(item.staff);
+                    if(allPlaced) {
+                        success = true;
+                        bestGrid = grid;
+                        globalStaffBusy = tempStaffBusy; 
+                        break;
+                    }
                 }
 
+                if(success) {
+                    timetable[`${cleanKey}-${section.name}`] = bestGrid;
+                } else {
+                    generationSuccess = false;
+                    showToast(`Error: Could not schedule ${section.name} without clashing.`);
+                }
             });
 
+            if(generationSuccess) {
+                localStorage.setItem(`timetable_${cleanKey}`, JSON.stringify(timetable));
+                showToast("Timetable generated successfully with ZERO clashes!");
+            }
         }
 
-    }
+        function showToast(m){
+            const t = document.getElementById("toast");
+            t.innerText = m; t.classList.add("show");
+            setTimeout(()=>t.classList.remove("show"), 3000);
+        }
 
-    return timetable;
-}
+        function logout(){ firebase.auth().signOut().then(()=>window.location.replace("index.html")); }
 
-</script>
+        // Pro Badge Logic
+        if(localStorage.getItem("isProUser") === "true"){
+            window.onload = () => {
+                document.getElementById("logoText").classList.add("pro-user");
+                document.getElementById("proBadge").innerText = "PRO";
+            };
+        }
+    </script>
 </body>
 </html>
