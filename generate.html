@@ -173,18 +173,26 @@
             const targetDept = selectedDept.split("_sem_")[0];
             const targetSem = selectedDept.split("_sem_")[1];
 
-            // Safely fetch sections from Firestore (with fallback to local storage format if section page not migrated yet)
+            // FIXED: Handle new Firestore sectionsList array format safely to prevent "undefined"
             let sections = [];
             secSnap.forEach(doc => {
                 let sec = doc.data();
                 if(sec.department === targetDept || (sec.dept && sec.dept === targetDept)) {
-                    sections.push({ name: sec.name || sec.section, department: targetDept });
+                    if (sec.sectionsList) {
+                        sec.sectionsList.forEach(sName => {
+                            let shortName = sName.includes("-") ? sName.split("-")[1] : sName;
+                            sections.push({ name: shortName, department: targetDept });
+                        });
+                    } else {
+                        sections.push({ name: sec.name || sec.section, department: targetDept });
+                    }
                 }
             });
+            
             if(sections.length === 0) {
                 const sectionsKey = "sections_" + selectedDept;
                 const rawSections = JSON.parse(localStorage.getItem(sectionsKey)) || [];
-                sections = rawSections.map(sec => ({ name: sec.split("-")[1], department: sec.split("-")[0] }));
+                sections = rawSections.map(sec => ({ name: (sec.includes("-") ? sec.split("-")[1] : sec), department: sec.split("-")[0] }));
             }
 
             let deptData = departments.find(d => (d.name + "_sem_" + d.semester) === selectedDept);
@@ -192,7 +200,7 @@
             const periods = deptData ? Number(deptData.periods) : 6;
 
             // Filter subjects strictly by Dept and Sem
-            const deptSubjects = subjects.filter(s => s.dept && s.dept.toLowerCase() === targetDept.toLowerCase() && s.sem == targetSem);
+            const deptSubjects = subjects.filter(s => (s.dept || "").toLowerCase() === (targetDept || "").toLowerCase() && s.sem == targetSem);
 
             let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
 
@@ -244,10 +252,12 @@
                     let allPlaced = true;
 
                     for(let subObj of localQueue) {
+                        
+                        // FIXED: Added safe (var || "").toLowerCase() to prevent the undefined crash
                         let staffObj = staffList.find(s => 
-                            s.subject && s.subject.toLowerCase() === subObj.name.toLowerCase() &&
-                            s.dept && s.dept.toLowerCase() === targetDept.toLowerCase() &&
-                            s.section && s.section.toLowerCase() === section.name.toLowerCase()
+                            (s.subject || "").toLowerCase() === (subObj.name || "").toLowerCase() &&
+                            (s.dept || "").toLowerCase() === (targetDept || "").toLowerCase() &&
+                            (s.section || "").toLowerCase() === (section.name || "").toLowerCase()
                         );
                         let staffName = staffObj ? staffObj.name : "Unassigned";
 
@@ -265,7 +275,9 @@
                         for(let slot of freeSlots){
                             let slotKey = `${slot.d}-${slot.p}`;
                             let staffIsBusy = tempStaffBusy[staffName] && tempStaffBusy[staffName].includes(slotKey);
-                            let isBackToBack = (slot.p > 0 && grid[slot.d][slot.p-1].includes(subObj.name));
+                            
+                            // FIXED: Added safe || "" to the grid string check
+                            let isBackToBack = (slot.p > 0 && (grid[slot.d][slot.p-1] || "").includes(subObj.name || ""));
 
                             if(!staffIsBusy && !isBackToBack && staffName !== "Unassigned") {
                                 grid[slot.d][slot.p] = JSON.stringify({
@@ -318,7 +330,7 @@
                 }
             });
 
-            // UPDATED: Save to Firestore
+            // Save to Firestore
             if(generationSuccess) {
                 db.collection("timetables").doc(`timetable_${cleanKey}`).set(timetable)
                 .then(() => {
