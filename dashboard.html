@@ -58,7 +58,7 @@ if(proUsers.includes(email)){
   localStorage.setItem("isProUser","false");
 }
 
-const emailElement = document.getElementById("userEmail");
+document.getElementById("userEmail").innerText = (user.email === "gayathridevi182005@gmail.com") ? "Admin" : user.email;
 
 if(emailElement){
     emailElement.style.visibility = "visible"; // ✅ Added this to make the email show up!
@@ -115,7 +115,7 @@ VELS Faculty Scheduling System
 </div>
 
 <div class="dashboard-header">
-<h1>Daaaashboard</h1>
+<h1>Dashboard</h1>
 <p>Overview of your timetable management system</p>
 </div>
 
