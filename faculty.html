@@ -32,7 +32,6 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-// ADDED: Initialize Firestore
 const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(function(user){
@@ -40,7 +39,6 @@ firebase.auth().onAuthStateChanged(function(user){
 if(user){
 document.body.style.display="block";
 
-/* PRO USERS */
 const proUsers = [
 "staff@college.com",
 "hod@college.com",
@@ -130,14 +128,12 @@ Generate
 
 <script>
 
-/* LOGOUT */
 function logout(){
 firebase.auth().signOut().then(()=>{
 window.location.replace("index.html");
 });
 }
 
-// --- White Custom Toast from View.html ---
 function showCustomToast(message){
     let toast = document.getElementById("customToast");
     if(!toast){
@@ -161,9 +157,7 @@ function showCustomToast(message){
     toast.style.display = "block";
     setTimeout(()=>{ toast.style.display = "none"; }, 3000);
 }
-// ---------------------------------------------------
 
-// UPDATED: Now fetches Staff directly from Firestore
 function loadStaff(){
     const select = document.getElementById("staffSelect");
     select.innerHTML = `<option value="">Select Staff</option>`;
@@ -172,26 +166,18 @@ function loadStaff(){
         let staffNames = [];
         querySnapshot.forEach((doc) => {
             let staffData = doc.data();
-            if(staffData.name && staffData.name.trim() !== ""){
-                staffNames.push(staffData.name);
-            }
+            if(staffData.name) staffNames.push(staffData.name);
         });
-
-        // Ensure unique names
         const uniqueNames = [...new Set(staffNames)];
-        
         uniqueNames.forEach(n => {
             let opt = document.createElement("option");
             opt.value = n;
             opt.textContent = n;
             select.appendChild(opt);
         });
-    }).catch(error => {
-        console.log("Error loading staff: ", error);
     });
 }
 
-// --- TIME HELPERS FOR GRID BUILDING ---
 function timeToMinutes(time){
     let parts=time.split(":");
     return Number(parts[0])*60 + Number(parts[1]);
@@ -201,19 +187,12 @@ function minutesToTime(mins){
     let m=mins%60;
     return h + ":" + m.toString().padStart(2,"0");
 }
-// ---------------------------------------------
 
-/* MAIN LOGIC */
-let originalTables = {};
-
-// UPDATED: Now fetches Departments, Staff, and Timetables directly from Firestore
 async function loadStaffTimetable(){
-
   const selectedRaw = document.getElementById("staffSelect").value;
   const selected = (selectedRaw || "").trim().toLowerCase();
   const container = document.getElementById("staffContainer");
 
-  // Validation for Empty Staff Selection
   if(!selected){
     container.innerHTML = "";
     showCustomToast("Please select a Staff member first");
@@ -221,14 +200,18 @@ async function loadStaffTimetable(){
   }
 
   try {
-      // 1. Fetch Staff Data
-      let staffQuery = await db.collection("staff").where("name", "==", selectedRaw).limit(1).get();
-      let matchedStaff = staffQuery.empty ? null : staffQuery.docs[0].data();
-      let primaryDeptName = matchedStaff ? (matchedStaff.dept || "").trim() : "";
+      const [staffSnap, deptSnap, ttSnap] = await Promise.all([
+          db.collection("staff").where("name", "==", selectedRaw).limit(1).get(),
+          db.collection("departments").get(),
+          db.collection("timetables").get()
+      ]);
 
-      // 2. Fetch Department Data
-      let deptQuery = await db.collection("departments").where("name", "==", primaryDeptName).limit(1).get();
-      let dept = deptQuery.empty ? {} : deptQuery.docs[0].data();
+      let matchedStaff = staffSnap.empty ? null : staffSnap.docs[0].data();
+      let primaryDeptName = matchedStaff ? (matchedStaff.dept || "").trim() : "";
+      
+      let departments = [];
+      deptSnap.forEach(d => departments.push(d.data()));
+      let dept = departments.find(d => (d.name || "").toLowerCase() === primaryDeptName.toLowerCase()) || {};
 
       let startTime = dept.startTime || "09:30";
       let periodMin = Number(dept.periodMinutes) || 50;
@@ -240,55 +223,33 @@ async function loadStaffTimetable(){
       let periods = Number(dept.periods) || 6;
       const allDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
-      // create empty dynamic timetable
       let days = allDays.slice(0, daysCount);
       let timetable = {};
+      days.forEach(day => { timetable[day] = Array(periods).fill(""); });
 
-      days.forEach(day => {
-        timetable[day] = Array(periods).fill("");
-      });
-
-      // 3. Fetch Timetables from Firestore
-      let timetablesSnapshot = await db.collection("timetables").get();
-
-      timetablesSnapshot.forEach((doc) => {
-          let data = doc.data(); 
-          
+      ttSnap.forEach((doc) => {
+          let data = doc.data();
           for(let sectionKey in data){
               let grid = data[sectionKey];
-
               for(let d=0; d < daysCount; d++){
                   let row = grid[d] || [];
                   for(let p=0; p < periods; p++){
-
                       let cell = row[p];
                       if(!cell) continue;
-
-                      let subject = "";
-                      let staffFromTT = "";
-
-                      // FIXED READING LOGIC FOR FIRESTORE OBJECTS
                       try {
                           let parsed = typeof cell === "string" ? JSON.parse(cell) : cell;
-                          subject = (parsed.subject || "");
-                          staffFromTT = (parsed.staff || "").toLowerCase();
-                      } catch(e) {
-                          let parts = String(cell).split("|");
-                          subject = parts[0]?.trim() || "";
-                          staffFromTT = parts[1]?.trim().toLowerCase() || "";
-                      }
-
-                      // match ONLY staff name and ensure it fits within boundary
-                      if(staffFromTT === selected && timetable[days[d]] && p < periods){
-                          timetable[days[d]][p] = 
-                            `<div style="font-weight:bold;">${subject.toUpperCase()}<br><span style="font-size:10px; color:blue;">(${sectionKey.split('-').pop()})</span></div>`;
-                      }
+                          if((parsed.staff || "").toLowerCase() === selected){
+                              // RESTORED: Read Department and Semester from sectionKey
+                              let displayInfo = sectionKey.replace(/_/g, " ");
+                              timetable[days[d]][p] = 
+                                `<div style="font-weight:bold;">${(parsed.subject || "").toUpperCase()}<br><span style="font-size:10px; color:blue;">(${displayInfo})</span></div>`;
+                          }
+                      } catch(e){}
                   }
               }
           }
       });
 
-      // --- BUILD TABLE UI ---
       let html = `
       <div class="form-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px;">
@@ -308,52 +269,32 @@ async function loadStaffTimetable(){
           let end = currentTime + periodMin;
           html += `<th style="padding:10px;">P${p}<br><small style="font-weight:normal;">${minutesToTime(currentTime)}-${minutesToTime(end)}</small></th>`;
           currentTime = end;
-          
-          if(p === lunchAfter) { 
-              let lEnd = currentTime + lunchDur;
-              html += `<th style="background-color: #f1f5f9; color: #64748b; font-size: 11px; padding:10px;">LUNCH<br><small style="font-weight:normal;">${minutesToTime(currentTime)}-${minutesToTime(lEnd)}</small></th>`; 
-              currentTime = lEnd; 
-          }
-          if(snackAfter && p === snackAfter) { 
-              let sEnd = currentTime + snackDur;
-              html += `<th style="background-color: #f1f5f9; color: #64748b; font-size: 11px; padding:10px;">SNACK<br><small style="font-weight:normal;">${minutesToTime(currentTime)}-${minutesToTime(sEnd)}</small></th>`; 
-              currentTime = sEnd; 
-          }
+          if(p === lunchAfter) { let lEnd = currentTime + lunchDur; html += `<th style="background-color: #f1f5f9; color: #64748b; font-size: 11px; padding:10px;">LUNCH<br><small style="font-weight:normal;">${minutesToTime(currentTime)}-${minutesToTime(lEnd)}</small></th>`; currentTime = lEnd; }
+          if(snackAfter && p === snackAfter) { let sEnd = currentTime + snackDur; html += `<th style="background-color: #f1f5f9; color: #64748b; font-size: 11px; padding:10px;">SNACK<br><small style="font-weight:normal;">${minutesToTime(currentTime)}-${minutesToTime(sEnd)}</small></th>`; currentTime = sEnd; }
       }
       html += `</tr></thead><tbody>`;
 
       days.forEach(day => {
         html += `<tr><td style="padding:10px;"><b>${day}</b></td>`;
-
         for(let p = 0; p < periods; p++) {
             html += `<td style="padding:10px;">${timetable[day][p] || "-"}</td>`;
             if((p+1) === lunchAfter) html += `<td style="background-color: #f1f5f9;"></td>`;
             if(snackAfter && (p+1) === snackAfter) html += `<td style="background-color: #f1f5f9;"></td>`;
         }
-
         html += `</tr>`;
       });
-
       html += `</tbody></table></div>`;
-
       container.innerHTML = html;
       showCustomToast("Staff timetable generated successfully");
 
   } catch (error) {
-      console.error("Error generating staff timetable: ", error);
+      console.error(error);
       showCustomToast("Error generating timetable");
   }
 }
 
-function editTimetable(sec){
-    document.querySelectorAll(`#table-${sec} td`).forEach(td => td.contentEditable = true);
-    document.getElementById(`controls-${sec}`).style.display = "inline";
-}
-
-function saveEdit(sec){
-    document.querySelectorAll(`#table-${sec} td`).forEach(td => td.contentEditable = false);
-    document.getElementById(`controls-${sec}`).style.display = "none";
-}
+function editTimetable(sec){ document.querySelectorAll(`#table-${sec} td`).forEach(td => td.contentEditable = true); document.getElementById(`controls-${sec}`).style.display = "inline"; }
+function saveEdit(sec){ document.querySelectorAll(`#table-${sec} td`).forEach(td => td.contentEditable = false); document.getElementById(`controls-${sec}`).style.display = "none"; }
 
 async function downloadPDF(sec, staffName, deptName){
     const canvas = await html2canvas(document.querySelector(`#table-${sec}`));
@@ -374,10 +315,7 @@ async function downloadPDF(sec, staffName, deptName){
     pdf.save(`${staffName}_timetable.pdf`);
 }
 
-/* INIT */
 loadStaff();
-
-/* PRO BADGE */
 var isPro = localStorage.getItem("isProUser");
 if(isPro === "true"){
     var logo = document.getElementById("logoText");
@@ -387,7 +325,6 @@ if(isPro === "true"){
         badge.innerText = "PRO";
     }
 }
-
 </script>
 </body>
 </html>
