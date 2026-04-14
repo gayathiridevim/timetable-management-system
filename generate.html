@@ -60,10 +60,7 @@
                 <li><a href="guidelines.html">System Guidelines</a></li>
             </ul>
             <div class="logout-section">
-                <div class="signed-in">
-                    <small>Signed in as</small>
-                    <p id="userEmail"></p>
-                </div>
+                <div class="signed-in"><small>Signed in as</small><p id="userEmail"></p></div>
                 <div class="logout-link" onclick="logout()">⬅ Logout</div>
             </div>
         </div>
@@ -92,7 +89,6 @@
         document.addEventListener("DOMContentLoaded", function(){
             loadDepartments();
             document.getElementById("departmentSelect").addEventListener("change", showDepartmentDetails);
-            
             if(localStorage.getItem("isProUser") === "true"){
                 const logo = document.getElementById("logoText");
                 const badge = document.getElementById("proBadge");
@@ -127,11 +123,9 @@
             const selected = document.getElementById("departmentSelect").value;
             const box = document.getElementById("summaryBox");
             if(!selected){ box.innerHTML = ""; return; }
-            
             const snap = await db.collection("departments").get();
             let departments = [];
             snap.forEach(doc => departments.push(doc.data()));
-
             const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
             if(!dep) return;
             box.innerHTML = `<div style="background:#f7f7f7;padding:15px;border-radius:8px;line-height:1.6;">
@@ -143,12 +137,11 @@
 
         async function generateTimetable(){
             const selectedDept = document.getElementById("departmentSelect").value;
-            const successDiv = document.getElementById("successMsg");
-            
+            const msgDiv = document.getElementById("successMsg");
             if(!selectedDept){ showToast("Select department"); return; }
-
-            successDiv.style.color = "blue";
-            successDiv.innerText = "Generating timetable, please wait...";
+            
+            msgDiv.style.color = "blue";
+            msgDiv.innerText = "Generating timetable, please wait...";
 
             try {
                 const [deptSnap, subjSnap, staffSnap, secSnap, ttSnap] = await Promise.all([
@@ -167,21 +160,13 @@
                 const targetSem = selectedDept.split("_sem_")[1];
 
                 let sections = [];
-                secSnap.forEach(doc => {
-                    if(doc.id === selectedDept) { 
-                        let data = doc.data();
-                        if(data.sectionsList) {
-                            data.sectionsList.forEach(s => {
-                                let nameOnly = s.includes("-") ? s.split("-")[1] : s;
-                                sections.push({ name: nameOnly, fullName: s });
-                            });
-                        }
-                    }
-                });
-
-                if(sections.length === 0){
-                    successDiv.style.color = "red";
-                    successDiv.innerText = "Error: No sections found. Go to Section Management and click Generate first.";
+                const secDoc = await db.collection("sections").doc(selectedDept).get();
+                if(secDoc.exists && secDoc.data().sectionsList){
+                    secDoc.data().sectionsList.forEach(sName => {
+                        sections.push({ name: sName.includes("-") ? sName.split("-")[1] : sName, fullName: sName });
+                    });
+                } else {
+                    msgDiv.innerText = "Error: No sections found. Generate sections first.";
                     return;
                 }
 
@@ -196,16 +181,18 @@
                 ttSnap.forEach(doc => {
                     if(doc.id !== `timetable_${cleanKey}`){
                         let data = doc.data();
-                        for(let secKey in data){
-                            let grid = data[secKey];
-                            for(let d=0; d<grid.length; d++){
-                                for(let p=0; p<grid[d].length; p++){
-                                    if(grid[d][p]){
+                        for(let sK in data){
+                            let gridObj = data[sK];
+                            // Reconstruct rows from object keys (0, 1, 2...)
+                            for(let d=0; d<days; d++){
+                                let row = gridObj[d] || [];
+                                for(let p=0; p<row.length; p++){
+                                    if(row[p]){
                                         try {
-                                            let cell = JSON.parse(grid[d][p]);
-                                            if(cell.staff && cell.staff !== "Unassigned"){
-                                                if(!globalStaffBusy[cell.staff]) globalStaffBusy[cell.staff] = [];
-                                                globalStaffBusy[cell.staff].push(`${d}-${p}`);
+                                            let cD = JSON.parse(row[p]);
+                                            if(cD.staff && cD.staff !== "Unassigned"){
+                                                if(!globalStaffBusy[cD.staff]) globalStaffBusy[cD.staff] = [];
+                                                globalStaffBusy[cD.staff].push(`${d}-${p}`);
                                             }
                                         } catch(e){}
                                     }
@@ -234,26 +221,24 @@
                         let allPlaced = true;
 
                         for(let sub of localQueue){
-                            let staffObj = staffList.find(s => 
+                            let staff = staffList.find(s => 
                                 (s.subject || "").toLowerCase() === (sub.name || "").toLowerCase() &&
                                 (s.section || "").toLowerCase() === (section.name || "").toLowerCase()
                             );
-                            let sName = staffObj ? staffObj.name : "Unassigned";
-
+                            let sName = staff ? staff.name : "Unassigned";
                             let slots = [];
                             for(let d=0; d<days; d++) for(let p=0; p<periods; p++) if(!grid[d][p]) slots.push({d,p});
                             slots.sort(() => Math.random() - 0.5);
 
                             let placed = false;
                             for(let slot of slots){
-                                let slotKey = `${slot.d}-${slot.p}`;
-                                let busy = tempBusy[sName] && tempBusy[sName].includes(slotKey);
+                                let key = `${slot.d}-${slot.p}`;
+                                let busy = tempBusy[sName] && tempBusy[sName].includes(slotKey = key);
                                 let b2b = slot.p > 0 && (grid[slot.d][slot.p-1] || "").includes(sub.name);
-
                                 if(!busy && !b2b){
                                     grid[slot.d][slot.p] = JSON.stringify({subject: sub.name, staff: sName});
                                     if(!tempBusy[sName]) tempBusy[sName] = [];
-                                    tempBusy[sName].push(slotKey);
+                                    tempBusy[sName].push(key);
                                     placed = true; break;
                                 }
                             }
@@ -262,23 +247,25 @@
                         if(allPlaced){ bestGrid = grid; globalStaffBusy = tempBusy; success = true; break; }
                     }
 
-                    if(success) finalResult[`${selectedDept}-${section.name}`] = bestGrid;
-                    else { 
-                        successDiv.style.color = "red";
-                        successDiv.innerText = `Conflict error in Section ${section.name}. Try adding more staff.`;
-                        return;
+                    if(success) {
+                        // FIX: Convert 2D array to Object to avoid Firestore "Nested Array" error
+                        let gridObj = {};
+                        bestGrid.forEach((row, idx) => { gridObj[idx] = row; });
+                        finalResult[`${selectedDept}-${section.name}`] = gridObj;
+                    } else { 
+                        msgDiv.innerText = `Conflict in Section ${section.name}`; return; 
                     }
                 }
 
                 await db.collection("timetables").doc(`timetable_${cleanKey}`).set(finalResult);
-                successDiv.style.color = "green";
-                successDiv.innerText = "Timetable generated successfully with ZERO clashes!";
+                msgDiv.style.color = "green";
+                msgDiv.innerText = "Timetable generated successfully with ZERO clashes!";
                 showToast("Generated!");
 
             } catch (err) {
                 console.error(err);
-                successDiv.style.color = "red";
-                successDiv.innerText = "Critical Error. Check Console.";
+                msgDiv.style.color = "red";
+                msgDiv.innerText = "Error: Check console.";
             }
         }
     </script>
