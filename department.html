@@ -121,14 +121,44 @@
             setTimeout(() => { toast.classList.remove("show"); }, 3000);
         }
 
-        window.deleteDepartment = function(docId, deptToDelete) {
-            if(!confirm("Are you sure? This will delete the department and ALL related subjects, staff, sections, and timetables!")) return;
+        // UPDATED CASCADE DELETE FUNCTION
+        window.deleteDepartment = async function(docId, deptToDelete) {
+            if(!confirm("Are you sure? This will delete the department and ALL related subjects, staff, sections, and timetables from the CLOUD!")) return;
             
             const deptLower = deptToDelete.trim().toLowerCase();
             const cleanKey = deptToDelete.replace(/\s+/g, "_").replace(/[^\w]/g, "");
 
-            db.collection("departments").doc(docId).delete().then(() => {
-                // Cascade Wipes for Subjects and Staff (local storage cleanup kept intact)
+            try {
+                showToast("Cleaning up all linked records...");
+
+                // 1. Delete linked Subjects
+                const subjSnap = await db.collection("subjects").where("dept", "==", deptToDelete).get();
+                subjSnap.forEach(doc => doc.ref.delete());
+
+                // 2. Delete linked Staff
+                const staffSnap = await db.collection("staff").where("dept", "==", deptToDelete).get();
+                staffSnap.forEach(doc => doc.ref.delete());
+
+                // 3. Delete linked Timetables
+                const ttSnap = await db.collection("timetables").get();
+                ttSnap.forEach(doc => {
+                    if(doc.id.toLowerCase().includes(deptLower) || doc.id.toLowerCase().includes(cleanKey.toLowerCase())){
+                        doc.ref.delete();
+                    }
+                });
+
+                // 4. Delete the Section lists
+                const secSnap = await db.collection("sections").get();
+                secSnap.forEach(doc => {
+                    if(doc.id.toLowerCase().includes(deptLower)){
+                        doc.ref.delete();
+                    }
+                });
+
+                // 5. Finally, delete the Department entry itself
+                await db.collection("departments").doc(docId).delete();
+
+                // 6. Clear local storage cleanup as well
                 const dataKeys = ["subjects", "staff"];
                 dataKeys.forEach(key => {
                     let items = JSON.parse(localStorage.getItem(key)) || [];
@@ -139,28 +169,12 @@
                     localStorage.setItem(key, JSON.stringify(filtered));
                 });
 
-                // Wipe all Section and Timetable keys starting with this department name
-                let keysToRemove = [];
-                for(let i=0; i<localStorage.length; i++) {
-                    let key = localStorage.key(i);
-                    if (key && (
-                        key.toLowerCase().startsWith(`sections_${deptLower}_`) || 
-                        key.startsWith(`sections_${deptToDelete}_`) ||
-                        key.toLowerCase().startsWith(`timetable_${deptLower}_`) || 
-                        key.toLowerCase().startsWith(`timetable_${cleanKey.toLowerCase()}_`) ||
-                        key.startsWith(`timetable_${deptToDelete}_`)
-                    )) {
-                        keysToRemove.push(key);
-                    }
-                }
-                
-                keysToRemove.forEach(k => localStorage.removeItem(k));
-
                 renderTable();
-                showToast(`Department and all linked records deleted.`);
-            }).catch((error) => {
-                console.error("Error removing document: ", error);
-            });
+                showToast(`Department and all linked cloud records deleted.`);
+            } catch (error) {
+                console.error("Error during cascade delete: ", error);
+                showToast("Error deleting records from cloud.");
+            }
         };
 
         function renderTable() {
