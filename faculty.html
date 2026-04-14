@@ -248,7 +248,7 @@ function loadStaffTimetable(){
     html += `<tr><td><b>${day}</b></td>`;
 
     timetable[day].forEach(cell => {
-      html += `<td>${cell || "FREE"}</td>`;
+      html += `<td>${cell || "-"}</td>`;
     });
 
     html += `</tr>`;
