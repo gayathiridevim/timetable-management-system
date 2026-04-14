@@ -121,34 +121,48 @@
 
         // Global function attached to window for reliable calling
         window.deleteDepartment = function(index) {
+            if(!confirm("Are you sure? This will delete the department and ALL related subjects, staff, sections, and timetables!")) return;
+            
             let departments = JSON.parse(localStorage.getItem("departments")) || [];
             if(!departments[index]) return;
 
             const deptToDelete = departments[index].name;
             const deptLower = deptToDelete.trim().toLowerCase();
+            const cleanKey = deptToDelete.replace(/\s+/g, "_").replace(/[^\w]/g, "");
 
             // 1. Delete the Department entry
             departments.splice(index, 1);
             localStorage.setItem("departments", JSON.stringify(departments));
 
-            // 2. Cascade Wipes for Subjects, Staff, and Sections
-            const dataKeys = ["subjects", "staff", "sections"];
+            // 2. Cascade Wipes for Subjects and Staff (they are saved with .dept property)
+            const dataKeys = ["subjects", "staff"];
             dataKeys.forEach(key => {
                 let items = JSON.parse(localStorage.getItem(key)) || [];
-                // Filter out any item belonging to this department (case-insensitive)
+                // Filter out any item where dept matches
                 let filtered = items.filter(item => {
-                    const d = item.department || "";
+                    const d = item.dept || item.department || ""; 
                     return d.trim().toLowerCase() !== deptLower;
                 });
                 localStorage.setItem(key, JSON.stringify(filtered));
             });
 
-            // 3. Wipe all Timetable keys starting with this department name
-            Object.keys(localStorage).forEach(key => {
-                if (key.toLowerCase().startsWith(`timetable_${deptLower}_`) || key.startsWith(`timetable_${deptToDelete}_`)) {
-                    localStorage.removeItem(key);
+            // 3. Wipe all Section and Timetable keys starting with this department name
+            let keysToRemove = [];
+            for(let i=0; i<localStorage.length; i++) {
+                let key = localStorage.key(i);
+                if (key && (
+                    key.toLowerCase().startsWith(`sections_${deptLower}_`) || 
+                    key.startsWith(`sections_${deptToDelete}_`) ||
+                    key.toLowerCase().startsWith(`timetable_${deptLower}_`) || 
+                    key.toLowerCase().startsWith(`timetable_${cleanKey.toLowerCase()}_`) ||
+                    key.startsWith(`timetable_${deptToDelete}_`)
+                )) {
+                    keysToRemove.push(key);
                 }
-            });
+            }
+            
+            // Actually remove the keys found
+            keysToRemove.forEach(k => localStorage.removeItem(k));
 
             renderTable();
             showToast(`Department and all linked records deleted.`);

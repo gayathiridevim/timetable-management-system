@@ -81,6 +81,32 @@ firebase.auth().onAuthStateChanged(user => {
 </div>
 
 <script>
+// --- UPDATED: Custom Bottom Right Toast Notification (Now White!) ---
+function showCustomToast(message){
+    let toast = document.getElementById("customToast");
+    if(!toast){
+        toast = document.createElement("div");
+        toast.id = "customToast";
+        toast.style.position = "fixed";
+        toast.style.bottom = "20px";
+        toast.style.right = "20px";
+        toast.style.background = "#ffffff"; // Changed to white
+        toast.style.color = "#333333";      // Changed to dark gray for readability
+        toast.style.border = "1px solid #e2e8f0"; // Added subtle border
+        toast.style.padding = "12px 18px";
+        toast.style.borderRadius = "8px";
+        toast.style.boxShadow = "0 4px 15px rgba(0,0,0,0.1)"; // Softened shadow
+        toast.style.fontSize = "14px";
+        toast.style.zIndex = "9999";
+        toast.style.fontWeight = "bold";
+        document.body.appendChild(toast);
+    }
+    toast.innerText = message;
+    toast.style.display = "block";
+    setTimeout(()=>{ toast.style.display = "none"; }, 3000);
+}
+// ---------------------------------------------------
+
 function normalize(str) {
     return str ? str.toString().toLowerCase().replace(/[^a-z0-9]/g, "").trim() : "";
 }
@@ -97,12 +123,19 @@ function minutesToTime(mins){
 }
 
 function deleteSection(key, section) {
-    if(!confirm("Are you sure?")) return;
+    // 1. Delete the data instantly
     let data = JSON.parse(localStorage.getItem(key)) || {};
     delete data[section];
-    if (Object.keys(data).length === 0) { localStorage.removeItem(key); }
-    else { localStorage.setItem(key, JSON.stringify(data)); }
+    
+    if (Object.keys(data).length === 0) { 
+        localStorage.removeItem(key); 
+    } else { 
+        localStorage.setItem(key, JSON.stringify(data)); 
+    }
+    
+    // 2. Reload the page and show the success toast
     loadTimetables();
+    showCustomToast("Timetable deleted successfully");
 }
 
 function loadTimetables(){
@@ -111,6 +144,7 @@ function loadTimetables(){
     
     let departments = JSON.parse(localStorage.getItem("departments")) || [];
     let staffList = JSON.parse(localStorage.getItem("staff")) || [];
+    let allSubjects = JSON.parse(localStorage.getItem("subjects")) || [];
     let found = false;
 
     for(let key in localStorage){
@@ -147,10 +181,11 @@ function loadTimetables(){
                 let tableHTML = `<div class="form-card">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px;">
                         <h2 style="margin:0;">${sectionKey}</h2>
-                        <div style="display:flex; gap:8px;">
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="text" id="incharge-${sectionKey}" placeholder="Class Incharge Name" style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:13px; width:160px;">
                             <button onclick="editTimetable('${sectionKey}')" style="background:#3498db;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">Edit</button>
                             <span id="controls-${sectionKey}" style="display:none"><button onclick="saveEdit('${sectionKey}')" style="background:#27ae60;color:white;border:none;padding:6px 12px;border-radius:4px;">✔</button></span>
-                            <button onclick="downloadPDF('${sectionKey}')" style="background:#34495e;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">PDF</button>
+                            <button onclick="downloadPDF('${sectionKey}', '${dept.name || deptName}', '${sem}', '${secLetter}')" style="background:#34495e;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">PDF</button>
                             <button class="delete-btn" onclick="deleteSection('${key}','${sectionKey}')">Delete</button>
                         </div>
                     </div>
@@ -162,8 +197,17 @@ function loadTimetables(){
                     let end = currentTime + periodMin;
                     tableHTML += `<th>P${p}<br><small>${minutesToTime(currentTime)}-${minutesToTime(end)}</small></th>`;
                     currentTime = end;
-                    if(p === lunchAfter) { tableHTML += `<th class="break-cell">LUNCH</th>`; currentTime += lunchDur; }
-                    if(snackAfter && p === snackAfter) { tableHTML += `<th class="break-cell">SNACK</th>`; currentTime += snackDur; }
+                    
+                    if(p === lunchAfter) { 
+                        let lEnd = currentTime + lunchDur;
+                        tableHTML += `<th class="break-cell">LUNCH<br><small>${minutesToTime(currentTime)}-${minutesToTime(lEnd)}</small></th>`; 
+                        currentTime = lEnd; 
+                    }
+                    if(snackAfter && p === snackAfter) { 
+                        let sEnd = currentTime + snackDur;
+                        tableHTML += `<th class="break-cell">SNACK<br><small>${minutesToTime(currentTime)}-${minutesToTime(sEnd)}</small></th>`; 
+                        currentTime = sEnd; 
+                    }
                 }
                 tableHTML += "</tr></thead><tbody>";
 
@@ -188,8 +232,16 @@ function loadTimetables(){
                             }
                         }
 
+                        let typeStr = "";
+                        if(subj){
+                            let matchedSub = allSubjects.find(s => normalize(s.name) === normalize(subj));
+                            if(matchedSub && matchedSub.type){
+                                typeStr = matchedSub.type.toLowerCase() === "lab" ? "(L)" : "(T)";
+                            }
+                        }
+
                         tableHTML += `<td>
-                            <div class="subject-text">${subj ? subj.toUpperCase() : "-"}</div>
+                            <div class="subject-text">${subj ? subj.toUpperCase() + " " + typeStr : "-"}</div>
                             <div class="staff-text">${staffName || "-"}</div>
                         </td>`;
                         
@@ -216,11 +268,53 @@ function saveEdit(sec){
     document.getElementById(`controls-${sec}`).style.display = "none";
 }
 
-async function downloadPDF(sec){
+// --- UPDATED: Pass sem and secLetter into downloadPDF ---
+async function downloadPDF(sec, deptName, semNum, secLetter){
+    // 1. Check for Class Incharge
+    const inchargeInput = document.getElementById(`incharge-${sec}`);
+    const inchargeName = inchargeInput ? inchargeInput.value.trim() : "";
+    
+    if(!inchargeName){
+        showCustomToast("Please enter Class Incharge name before downloading!");
+        return;
+    }
+
+    // Formatter logic to make "BCA-A 6th Semester"
+    let n = parseInt(semNum, 10);
+    let suffix = "th";
+    if (n === 1) suffix = "st";
+    else if (n === 2) suffix = "nd";
+    else if (n === 3) suffix = "rd";
+    
+    let titleText = `${deptName.toUpperCase()}-${secLetter.toUpperCase()} ${n}${suffix} Semester`;
+
+    // 2. Generate Canvas
     const canvas = await html2canvas(document.querySelector(`#table-${sec}`));
-    const pdf = new jspdf.jsPDF("l", "mm", "a4");
-    pdf.addImage(canvas.toDataURL("image/png"), 'PNG', 10, 25, 275, 0);
-    pdf.save(sec + ".pdf");
+    const imgData = canvas.toDataURL("image/png");
+    
+    // 3. Calculate Perfect PDF Dimensions
+    const pdfWidth = 297; 
+    const imgWidth = 277; 
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    // Auto-adjust page height
+    const pdfHeight = imgHeight + 40; 
+    
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("l", "mm", [pdfWidth, pdfHeight]);
+    
+    // 4. Add Headers to PDF (Using the newly formatted title string!)
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(titleText, 10, 15);
+    
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`Class Incharge: ${inchargeName}`, 10, 23);
+    
+    // 5. Add Table Image & Save
+    pdf.addImage(imgData, 'PNG', 10, 30, imgWidth, imgHeight);
+    pdf.save(`${sec}.pdf`);
 }
 </script>
 </body>
