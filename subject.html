@@ -7,11 +7,13 @@
 body{
 display:none;
 }
+#userEmail{
+word-break: break-all;
+}
 </style>
-<!-- FIREBASE AUTH PROTECTION -->
-
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
 
@@ -25,6 +27,8 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+// ADDED: Initialize Firestore
+const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(function(user){
 
@@ -44,7 +48,6 @@ window.location.replace("index.html");
 
 <div class="layout">
 
-<!-- SIDEBAR -->
 <div class="sidebar">
 
 <div class="sidebar-header">
@@ -55,7 +58,7 @@ window.location.replace("index.html");
 <ul>
 <li><a href="dashboard.html">Dashboard</a></li>
 <li><a href="department.html">Department Setup</a></li>
-<li><a href="subject.html">Subject Management</a></li>
+<li><a href="subject.html" class="active">Subject Management</a></li>
 <li><a href="staff.html">Staff Management</a></li>
 <li><a href="section.html">Section Management</a></li>
 <li><a href="generate.html">Generate Timetable</a></li>
@@ -79,7 +82,6 @@ window.location.replace("index.html");
 </div>
 
 
-<!-- RIGHT CONTENT -->
 <div class="content-area">
 
 <div class="top-navbar">
@@ -97,7 +99,6 @@ VELS Faculty Scheduling System
 </div>
 
 
-<!-- FORM -->
 <div class="form-card">
 
 <h3>Add New Subject</h3>
@@ -194,8 +195,6 @@ VELS Faculty Scheduling System
 
 <script>
 
-
-
 firebase.auth().onAuthStateChanged(function(user){
 
 if(user){
@@ -226,8 +225,6 @@ window.location.replace("index.html");
 });
 
 
-
-
 function logout(){
 
 if (typeof firebase !== "undefined") {
@@ -240,8 +237,6 @@ localStorage.removeItem("userEmail");
 window.location.replace("index.html");
 
 }
-
-
 
 
 function showToast(message){
@@ -258,26 +253,29 @@ toast.classList.remove("show");
 }
 
 
-/* LOAD DEPARTMENTS */
+/* UPDATED: LOAD DEPARTMENTS FROM FIRESTORE */
 
 function loadDepartments(){
 
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
 const deptSelect = document.getElementById("subjectDept");
 
-if(departments.length === 0){
-showToast("Create Department First");
-return;
+db.collection("departments").get().then((snap) => {
+    if(snap.empty){
+        showToast("Create Department First");
+        return;
+    }
+    
+    snap.forEach(doc => {
+        let dep = doc.data();
+        deptSelect.innerHTML += `<option value="${dep.name}">${dep.name}</option>`;
+    });
+}).catch(err => console.log("Error loading departments", err));
+
 }
 
-departments.forEach(dep=>{
-deptSelect.innerHTML += `<option value="${dep.name}">${dep.name}</option>`;
-});
-
-}
 
 
-
+/* UPDATED: ADD SUBJECT TO FIRESTORE */
 
 function addSubject(){
 
@@ -288,80 +286,95 @@ const type = document.getElementById("subjectType").value;
 const dept = document.getElementById("subjectDept").value;
 const sem = document.getElementById("subjectSem").value;
 
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
+db.collection("departments").get().then((snap) => {
+    if(snap.empty){
+        showToast("Create Department First");
+        return;
+    }
 
-if(departments.length === 0){
-showToast("Create Department First");
-return;
-}
+    if(!name || !code || !credits || !type || !dept || !sem){
+        showToast("Please fill all details");
+        return;
+    }
 
-if(!name || !code || !credits || !type || !dept || !sem){
-showToast("Please fill all details");
-return;
-}
+    const newSubject = {name, code, credits, type, dept, sem};
 
-let subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-
-subjects.push({name,code,credits,type,dept,sem});
-
-localStorage.setItem("subjects",JSON.stringify(subjects));
-
-showToast("Subject Added Successfully");
-
-renderSubjects();
-
-}
-
-
-
-
-function renderSubjects(){
-
-const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-const table = document.getElementById("subjectTable");
-
-table.innerHTML = "";
-
-subjects.forEach((sub,index)=>{
-
-table.innerHTML += `
-<tr>
-<td>${sub.name}</td>
-<td>${sub.code}</td>
-<td>${sub.credits}</td>
-<td>${sub.type}</td>
-<td>${sub.dept}</td>
-<td>${sub.sem}</td>
-<td>
-<button class="delete-icon-btn" onclick="deleteSubject(${index})">
-Delete
-</button>
-</td>
-</tr>
-`;
-
+    db.collection("subjects").add(newSubject).then(() => {
+        showToast("Subject Added Successfully");
+        
+        // Clear form fields
+        document.getElementById("subjectName").value = "";
+        document.getElementById("subjectCode").value = "";
+        document.getElementById("credits").value = "";
+        
+        renderSubjects();
+    }).catch(err => {
+        console.error("Error adding subject: ", err);
+        showToast("Error adding subject");
+    });
 });
 
 }
 
 
+/* UPDATED: READ SUBJECTS FROM FIRESTORE */
+
+function renderSubjects(){
+
+const table = document.getElementById("subjectTable");
+table.innerHTML = "";
+
+let localBackup = [];
+
+db.collection("subjects").get().then((snap) => {
+    snap.forEach((doc) => {
+        const sub = doc.data();
+        const docId = doc.id;
+        
+        localBackup.push(sub);
+
+        table.innerHTML += `
+        <tr>
+        <td>${sub.name}</td>
+        <td>${sub.code}</td>
+        <td>${sub.credits}</td>
+        <td>${sub.type}</td>
+        <td>${sub.dept}</td>
+        <td>${sub.sem}</td>
+        <td>
+        <button class="delete-icon-btn" onclick="deleteSubject('${docId}')">
+        Delete
+        </button>
+        </td>
+        </tr>
+        `;
+    });
+    
+    // Safety backup
+    localStorage.setItem("subjects", JSON.stringify(localBackup));
+}).catch(err => console.log("Error loading subjects", err));
+
+}
 
 
-function deleteSubject(index){
+/* UPDATED: DELETE SUBJECT FROM FIRESTORE */
 
-let subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+function deleteSubject(docId){
 
-subjects.splice(index,1);
-
-localStorage.setItem("subjects",JSON.stringify(subjects));
-
-renderSubjects();
+db.collection("subjects").doc(docId).delete().then(() => {
+    renderSubjects();
+    showToast("Subject Deleted Successfully");
+}).catch(err => {
+    console.error("Error removing subject: ", err);
+    showToast("Error deleting subject");
+});
 
 }
 
 
 loadDepartments();
 renderSubjects();
+
 function showUpgradeToast(){
 showToast("Upgrade to Pro to unlock unlimited departments and sections");
 }

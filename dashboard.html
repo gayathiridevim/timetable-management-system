@@ -10,6 +10,7 @@ display:none;
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
 
@@ -23,7 +24,8 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-
+// ADDED: Initialize Firestore
+const db = firebase.firestore();
 
 
 firebase.auth().onAuthStateChanged(function(user){
@@ -86,7 +88,7 @@ window.location.replace("index.html");
                 <p>Timetable Management System</p>
             </div>
             <ul>
-                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="dashboard.html" class="active">Dashboard</a></li>
                 <li><a href="department.html">Department Setup</a></li>
                 <li><a href="subject.html">Subject Management</a></li>
                 <li><a href="staff.html">Staff Management</a></li>
@@ -190,38 +192,33 @@ window.location.replace("index.html");
 });
 
 }
+
+// UPDATED: Now fetches counts directly from Firestore collections!
 function updateDashboardCounts() {
+    // Fetch Departments Count
+    db.collection("departments").get().then(snap => {
+        document.getElementById("deptCount").innerText = snap.size;
+    }).catch(e => console.log("Error fetching departments:", e));
 
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
-const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
-const staff = JSON.parse(localStorage.getItem("staff")) || [];
+    // Fetch Subjects Count
+    db.collection("subjects").get().then(snap => {
+        document.getElementById("subjectCount").innerText = snap.size;
+    }).catch(e => console.log("Error fetching subjects:", e));
 
+    // Fetch Staff Count
+    db.collection("staff").get().then(snap => {
+        document.getElementById("staffCount").innerText = snap.size;
+    }).catch(e => console.log("Error fetching staff:", e));
 
-
-let timetableCount = 0;
-
-for (let key in localStorage) {
-
-if (key.startsWith("timetable_")) {
-
-try {
-
-const data = JSON.parse(localStorage.getItem(key)) || {};
-timetableCount += Object.keys(data).length;
-
-} catch(e) {}
-
-}
-
-}
-
-/* UPDATE DASHBOARD */
-
-document.getElementById("deptCount").innerText = departments.length;
-document.getElementById("subjectCount").innerText = subjects.length;
-document.getElementById("staffCount").innerText = staff.length;
-document.getElementById("timetableCount").innerText = timetableCount;
-
+    // Fetch Timetables Count
+    db.collection("timetables").get().then(snap => {
+        let timetableCount = 0;
+        snap.forEach(doc => {
+            const data = doc.data();
+            timetableCount += Object.keys(data).length; // Count sections inside documents
+        });
+        document.getElementById("timetableCount").innerText = timetableCount > 0 ? timetableCount : snap.size;
+    }).catch(e => console.log("Error fetching timetables:", e));
 }
 
 /* RUN DASHBOARD */

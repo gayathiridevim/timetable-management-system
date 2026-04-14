@@ -18,6 +18,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -31,6 +32,8 @@ const firebaseConfig = {
     appId: "1:905343636728:web:91124de4d8a8160af5d70d"
 };
 firebase.initializeApp(firebaseConfig);
+// ADDED: Initialize Firestore
+const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(user => {
     if(user){ 
@@ -81,7 +84,7 @@ firebase.auth().onAuthStateChanged(user => {
 </div>
 
 <script>
-// --- UPDATED: Custom Bottom Right Toast Notification (Now White!) ---
+// --- Custom Bottom Right Toast Notification (White) ---
 function showCustomToast(message){
     let toast = document.getElementById("customToast");
     if(!toast){
@@ -90,12 +93,12 @@ function showCustomToast(message){
         toast.style.position = "fixed";
         toast.style.bottom = "20px";
         toast.style.right = "20px";
-        toast.style.background = "#ffffff"; // Changed to white
-        toast.style.color = "#333333";      // Changed to dark gray for readability
-        toast.style.border = "1px solid #e2e8f0"; // Added subtle border
+        toast.style.background = "#ffffff"; 
+        toast.style.color = "#333333";      
+        toast.style.border = "1px solid #e2e8f0"; 
         toast.style.padding = "12px 18px";
         toast.style.borderRadius = "8px";
-        toast.style.boxShadow = "0 4px 15px rgba(0,0,0,0.1)"; // Softened shadow
+        toast.style.boxShadow = "0 4px 15px rgba(0,0,0,0.1)"; 
         toast.style.fontSize = "14px";
         toast.style.zIndex = "9999";
         toast.style.fontWeight = "bold";
@@ -122,140 +125,168 @@ function minutesToTime(mins){
     return h + ":" + m.toString().padStart(2,"0");
 }
 
-function deleteSection(key, section) {
-    // 1. Delete the data instantly
-    let data = JSON.parse(localStorage.getItem(key)) || {};
-    delete data[section];
-    
-    if (Object.keys(data).length === 0) { 
-        localStorage.removeItem(key); 
-    } else { 
-        localStorage.setItem(key, JSON.stringify(data)); 
+// UPDATED: Delete Section Directly from Firestore
+async function deleteSection(docId, section) {
+    try {
+        const docRef = db.collection("timetables").doc(docId);
+        const docSnap = await docRef.get();
+        
+        if (docSnap.exists) {
+            let data = docSnap.data();
+            delete data[section];
+            
+            if (Object.keys(data).length === 0) { 
+                await docRef.delete(); // Delete entire document if empty
+            } else { 
+                await docRef.set(data); // Save the updated data back
+            }
+            
+            loadTimetables();
+            showCustomToast("Timetable deleted successfully");
+        }
+    } catch(e) {
+        console.error("Error deleting section:", e);
+        showCustomToast("Error deleting timetable");
     }
-    
-    // 2. Reload the page and show the success toast
-    loadTimetables();
-    showCustomToast("Timetable deleted successfully");
 }
 
-function loadTimetables(){
+// UPDATED: Load Timetables Directly from Firestore
+async function loadTimetables(){
     const container = document.getElementById("timetableContainer");
-    container.innerHTML = "";
+    container.innerHTML = "Loading...";
     
-    let departments = JSON.parse(localStorage.getItem("departments")) || [];
-    let staffList = JSON.parse(localStorage.getItem("staff")) || [];
-    let allSubjects = JSON.parse(localStorage.getItem("subjects")) || [];
-    let found = false;
+    try {
+        // Fetch background data
+        const [depSnap, subSnap, ttSnap] = await Promise.all([
+            db.collection("departments").get(),
+            db.collection("subjects").get(),
+            db.collection("timetables").get()
+        ]);
 
-    for(let key in localStorage){
-        if(key.startsWith("timetable_")){
-            found = true;
-            let timetableData;
-            try { timetableData = JSON.parse(localStorage.getItem(key)); } catch(e) { continue; }
-            
-            for(let sectionKey in timetableData){
-                const grid = timetableData[sectionKey];
+        let departments = [];
+        depSnap.forEach(doc => departments.push(doc.data()));
+
+        let allSubjects = [];
+        subSnap.forEach(doc => allSubjects.push(doc.data()));
+
+        let found = false;
+        container.innerHTML = "";
+
+        ttSnap.forEach((doc) => {
+            const key = doc.id;
+            if(key.startsWith("timetable_")){
+                found = true;
+                let timetableData = doc.data();
                 
-               let deptName = "Unknown", secLetter = "", sem = "";
-                if(sectionKey.includes("_sem_")){
-                    let parts = sectionKey.split("_sem_");
-                    deptName = parts[0];
+                for(let sectionKey in timetableData){
+                    const grid = timetableData[sectionKey];
+                    
+                   let deptName = "Unknown", secLetter = "", sem = "";
+                    if(sectionKey.includes("_sem_")){
+                        let parts = sectionKey.split("_sem_");
+                        deptName = parts[0];
 
-                    let subParts = parts[1].split("-");
-                    sem = subParts[0];
-                    secLetter = subParts[1] || "";
-                }
+                        let subParts = parts[1].split("-");
+                        sem = subParts[0];
+                        secLetter = subParts[1] || "";
+                    }
 
-                let dept = departments.find(d => normalize(d.name) === normalize(deptName)) || {};
-                
-                let startTime = dept.startTime || "09:30";
-                let periodMin = Number(dept.periodMinutes) || 50;
-                let lunchAfter = Number(dept.lunchAfter) || 3;
-                let lunchDur = Number(dept.lunchDuration) || 30;
-                let snackAfter = dept.snackAfter ? Number(dept.snackAfter) : null;
-                let snackDur = Number(dept.snackDuration) || 15;
-                let daysCount = Number(dept.days) || 5;
-                let periods = Number(dept.periods) || 6;
-                const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+                    let dept = departments.find(d => normalize(d.name) === normalize(deptName)) || {};
+                    
+                    let startTime = dept.startTime || "09:30";
+                    let periodMin = Number(dept.periodMinutes) || 50;
+                    let lunchAfter = Number(dept.lunchAfter) || 3;
+                    let lunchDur = Number(dept.lunchDuration) || 30;
+                    let snackAfter = dept.snackAfter ? Number(dept.snackAfter) : null;
+                    let snackDur = Number(dept.snackDuration) || 15;
+                    let daysCount = Number(dept.days) || 5;
+                    let periods = Number(dept.periods) || 6;
+                    const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
-                let tableHTML = `<div class="form-card">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px;">
-                        <h2 style="margin:0;">${sectionKey}</h2>
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            <input type="text" id="incharge-${sectionKey}" placeholder="Class Incharge Name" style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:13px; width:160px;">
-                            <button onclick="editTimetable('${sectionKey}')" style="background:#3498db;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">Edit</button>
-                            <span id="controls-${sectionKey}" style="display:none"><button onclick="saveEdit('${sectionKey}')" style="background:#27ae60;color:white;border:none;padding:6px 12px;border-radius:4px;">✔</button></span>
-                            <button onclick="downloadPDF('${sectionKey}', '${dept.name || deptName}', '${sem}', '${secLetter}')" style="background:#34495e;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">PDF</button>
-                            <button class="delete-btn" onclick="deleteSection('${key}','${sectionKey}')">Delete</button>
+                    let tableHTML = `<div class="form-card">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px;">
+                            <h2 style="margin:0;">${sectionKey}</h2>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input type="text" id="incharge-${sectionKey}" placeholder="Class Incharge Name" style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:13px; width:160px;">
+                                <button onclick="editTimetable('${sectionKey}')" style="background:#3498db;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">Edit</button>
+                                <span id="controls-${sectionKey}" style="display:none"><button onclick="saveEdit('${sectionKey}', '${key}')" style="background:#27ae60;color:white;border:none;padding:6px 12px;border-radius:4px;">✔</button></span>
+                                <button onclick="downloadPDF('${sectionKey}', '${dept.name || deptName}', '${sem}', '${secLetter}')" style="background:#34495e;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">PDF</button>
+                                <button class="delete-btn" onclick="deleteSection('${key}','${sectionKey}')">Delete</button>
+                            </div>
                         </div>
-                    </div>
-                    <table id="table-${sectionKey}">
-                        <thead><tr><th>Day</th>`;
+                        <table id="table-${sectionKey}">
+                            <thead><tr><th>Day</th>`;
 
-                let currentTime = timeToMinutes(startTime);
-                for(let p = 1; p <= periods; p++){
-                    let end = currentTime + periodMin;
-                    tableHTML += `<th>P${p}<br><small>${minutesToTime(currentTime)}-${minutesToTime(end)}</small></th>`;
-                    currentTime = end;
-                    
-                    if(p === lunchAfter) { 
-                        let lEnd = currentTime + lunchDur;
-                        tableHTML += `<th class="break-cell">LUNCH<br><small>${minutesToTime(currentTime)}-${minutesToTime(lEnd)}</small></th>`; 
-                        currentTime = lEnd; 
-                    }
-                    if(snackAfter && p === snackAfter) { 
-                        let sEnd = currentTime + snackDur;
-                        tableHTML += `<th class="break-cell">SNACK<br><small>${minutesToTime(currentTime)}-${minutesToTime(sEnd)}</small></th>`; 
-                        currentTime = sEnd; 
-                    }
-                }
-                tableHTML += "</tr></thead><tbody>";
-
-                for(let i=0; i < daysCount; i++){
-                    tableHTML += `<tr><td><b>${days[i]}</b></td>`;
-                    let row = grid[i] || [];
-                    
-                    for(let j=1; j <= periods; j++){
-                        let cellData = row[j-1] || "";
-                        let subj = "";
-                        let staffName = "";
+                    let currentTime = timeToMinutes(startTime);
+                    for(let p = 1; p <= periods; p++){
+                        let end = currentTime + periodMin;
+                        tableHTML += `<th>P${p}<br><small>${minutesToTime(currentTime)}-${minutesToTime(end)}</small></th>`;
+                        currentTime = end;
                         
-                        if(cellData) {
-                            try {
-                                let parsed = JSON.parse(cellData);
-                                subj = parsed.subject;
-                                staffName = parsed.staff;
-                            } catch(e) {
-                                let parts = cellData.split("|");
-                                subj = parts[0] || "";
-                                staffName = parts[1] || "";
-                            }
+                        if(p === lunchAfter) { 
+                            let lEnd = currentTime + lunchDur;
+                            tableHTML += `<th class="break-cell">LUNCH<br><small>${minutesToTime(currentTime)}-${minutesToTime(lEnd)}</small></th>`; 
+                            currentTime = lEnd; 
                         }
-
-                        let typeStr = "";
-                        if(subj){
-                            let matchedSub = allSubjects.find(s => normalize(s.name) === normalize(subj));
-                            if(matchedSub && matchedSub.type){
-                                typeStr = matchedSub.type.toLowerCase() === "lab" ? "(L)" : "(T)";
-                            }
+                        if(snackAfter && p === snackAfter) { 
+                            let sEnd = currentTime + snackDur;
+                            tableHTML += `<th class="break-cell">SNACK<br><small>${minutesToTime(currentTime)}-${minutesToTime(sEnd)}</small></th>`; 
+                            currentTime = sEnd; 
                         }
-
-                        tableHTML += `<td>
-                            <div class="subject-text">${subj ? subj.toUpperCase() + " " + typeStr : "-"}</div>
-                            <div class="staff-text">${staffName || "-"}</div>
-                        </td>`;
-                        
-                        if(j === lunchAfter) tableHTML += `<td class="break-cell"></td>`;
-                        if(snackAfter && j === snackAfter) tableHTML += `<td class="break-cell"></td>`;
                     }
-                    tableHTML += "</tr>";
+                    tableHTML += "</tr></thead><tbody>";
+
+                    for(let i=0; i < daysCount; i++){
+                        tableHTML += `<tr><td><b>${days[i]}</b></td>`;
+                        let row = grid[i] || [];
+                        
+                        for(let j=1; j <= periods; j++){
+                            let cellData = row[j-1] || "";
+                            let subj = "";
+                            let staffName = "";
+                            
+                            if(cellData) {
+                                try {
+                                    let parsed = JSON.parse(cellData);
+                                    subj = parsed.subject;
+                                    staffName = parsed.staff;
+                                } catch(e) {
+                                    let parts = cellData.split("|");
+                                    subj = parts[0] || "";
+                                    staffName = parts[1] || "";
+                                }
+                            }
+
+                            let typeStr = "";
+                            if(subj){
+                                let matchedSub = allSubjects.find(s => normalize(s.name) === normalize(subj));
+                                if(matchedSub && matchedSub.type){
+                                    typeStr = matchedSub.type.toLowerCase() === "lab" ? "(L)" : "(T)";
+                                }
+                            }
+
+                            tableHTML += `<td>
+                                <div class="subject-text">${subj ? subj.toUpperCase() + " " + typeStr : "-"}</div>
+                                <div class="staff-text">${staffName || "-"}</div>
+                            </td>`;
+                            
+                            if(j === lunchAfter) tableHTML += `<td class="break-cell"></td>`;
+                            if(snackAfter && j === snackAfter) tableHTML += `<td class="break-cell"></td>`;
+                        }
+                        tableHTML += "</tr>";
+                    }
+                    tableHTML += "</tbody></table></div>";
+                    container.innerHTML += tableHTML;
                 }
-                tableHTML += "</tbody></table></div>";
-                container.innerHTML += tableHTML;
             }
-        }
+        });
+
+        if(!found) container.innerHTML = "<div class='form-card'>No timetables found.</div>";
+
+    } catch(error) {
+        console.error("Error loading timetables:", error);
+        container.innerHTML = "<div class='form-card'>Error loading timetables. Please check connection.</div>";
     }
-    if(!found) container.innerHTML = "<div class='form-card'>No timetables found.</div>";
 }
 
 function editTimetable(sec){
@@ -263,12 +294,13 @@ function editTimetable(sec){
     document.getElementById(`controls-${sec}`).style.display = "inline";
 }
 
-function saveEdit(sec){
+function saveEdit(sec, docId){
     document.querySelectorAll(`#table-${sec} td`).forEach(td => td.contentEditable = false);
     document.getElementById(`controls-${sec}`).style.display = "none";
+    showCustomToast("Visual changes saved. (Note: Edits do not permanently update the Firestore grid structure).");
 }
 
-// --- UPDATED: Pass sem and secLetter into downloadPDF ---
+// --- PDF Logic ---
 async function downloadPDF(sec, deptName, semNum, secLetter){
     // 1. Check for Class Incharge
     const inchargeInput = document.getElementById(`incharge-${sec}`);

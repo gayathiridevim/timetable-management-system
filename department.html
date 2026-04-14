@@ -8,6 +8,7 @@
     </style>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
     <script>
         const firebaseConfig = {
@@ -19,6 +20,7 @@
             appId: "1:905343636728:web:91124de4d8a8160af5d70d"
         };
         firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
         firebase.auth().onAuthStateChanged(function(user){
             if(user){
@@ -119,74 +121,75 @@
             setTimeout(() => { toast.classList.remove("show"); }, 3000);
         }
 
-        // Global function attached to window for reliable calling
-        window.deleteDepartment = function(index) {
+        window.deleteDepartment = function(docId, deptToDelete) {
             if(!confirm("Are you sure? This will delete the department and ALL related subjects, staff, sections, and timetables!")) return;
             
-            let departments = JSON.parse(localStorage.getItem("departments")) || [];
-            if(!departments[index]) return;
-
-            const deptToDelete = departments[index].name;
             const deptLower = deptToDelete.trim().toLowerCase();
             const cleanKey = deptToDelete.replace(/\s+/g, "_").replace(/[^\w]/g, "");
 
-            // 1. Delete the Department entry
-            departments.splice(index, 1);
-            localStorage.setItem("departments", JSON.stringify(departments));
-
-            // 2. Cascade Wipes for Subjects and Staff (they are saved with .dept property)
-            const dataKeys = ["subjects", "staff"];
-            dataKeys.forEach(key => {
-                let items = JSON.parse(localStorage.getItem(key)) || [];
-                // Filter out any item where dept matches
-                let filtered = items.filter(item => {
-                    const d = item.dept || item.department || ""; 
-                    return d.trim().toLowerCase() !== deptLower;
+            db.collection("departments").doc(docId).delete().then(() => {
+                // Cascade Wipes for Subjects and Staff (local storage cleanup kept intact)
+                const dataKeys = ["subjects", "staff"];
+                dataKeys.forEach(key => {
+                    let items = JSON.parse(localStorage.getItem(key)) || [];
+                    let filtered = items.filter(item => {
+                        const d = item.dept || item.department || ""; 
+                        return d.trim().toLowerCase() !== deptLower;
+                    });
+                    localStorage.setItem(key, JSON.stringify(filtered));
                 });
-                localStorage.setItem(key, JSON.stringify(filtered));
-            });
 
-            // 3. Wipe all Section and Timetable keys starting with this department name
-            let keysToRemove = [];
-            for(let i=0; i<localStorage.length; i++) {
-                let key = localStorage.key(i);
-                if (key && (
-                    key.toLowerCase().startsWith(`sections_${deptLower}_`) || 
-                    key.startsWith(`sections_${deptToDelete}_`) ||
-                    key.toLowerCase().startsWith(`timetable_${deptLower}_`) || 
-                    key.toLowerCase().startsWith(`timetable_${cleanKey.toLowerCase()}_`) ||
-                    key.startsWith(`timetable_${deptToDelete}_`)
-                )) {
-                    keysToRemove.push(key);
+                // Wipe all Section and Timetable keys starting with this department name
+                let keysToRemove = [];
+                for(let i=0; i<localStorage.length; i++) {
+                    let key = localStorage.key(i);
+                    if (key && (
+                        key.toLowerCase().startsWith(`sections_${deptLower}_`) || 
+                        key.startsWith(`sections_${deptToDelete}_`) ||
+                        key.toLowerCase().startsWith(`timetable_${deptLower}_`) || 
+                        key.toLowerCase().startsWith(`timetable_${cleanKey.toLowerCase()}_`) ||
+                        key.startsWith(`timetable_${deptToDelete}_`)
+                    )) {
+                        keysToRemove.push(key);
+                    }
                 }
-            }
-            
-            // Actually remove the keys found
-            keysToRemove.forEach(k => localStorage.removeItem(k));
+                
+                keysToRemove.forEach(k => localStorage.removeItem(k));
 
-            renderTable();
-            showToast(`Department and all linked records deleted.`);
+                renderTable();
+                showToast(`Department and all linked records deleted.`);
+            }).catch((error) => {
+                console.error("Error removing document: ", error);
+            });
         };
 
         function renderTable() {
-            const departments = JSON.parse(localStorage.getItem("departments")) || [];
             const table = document.getElementById("deptTable");
             table.innerHTML = "";
+            let localBackup = [];
             
-            departments.forEach((dep, index) => {
-                const totalWeek = Number(dep.days) * Number(dep.periods);
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td>${dep.name}</td>
-                    <td>${dep.semester}</td>
-                    <td>${dep.days}</td>
-                    <td>${dep.periods}</td>
-                    <td>${dep.sections}</td>
-                    <td style="color:blue; font-weight:bold;">${totalWeek}</td>
-                    <td>
-                        <button class="delete-icon-btn" onclick="deleteDepartment(${index})">Delete</button>
-                    </td>`;
-                table.appendChild(tr);
+            db.collection("departments").get().then((querySnapshot) => {
+                querySnapshot.forEach((doc) => {
+                    const dep = doc.data();
+                    const docId = doc.id;
+                    localBackup.push(dep);
+                    
+                    const totalWeek = Number(dep.days) * Number(dep.periods);
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${dep.name}</td>
+                        <td>${dep.semester}</td>
+                        <td>${dep.days}</td>
+                        <td>${dep.periods}</td>
+                        <td>${dep.sections}</td>
+                        <td style="color:blue; font-weight:bold;">${totalWeek}</td>
+                        <td>
+                            <button class="delete-icon-btn" onclick="deleteDepartment('${docId}', '${dep.name}')">Delete</button>
+                        </td>`;
+                    table.appendChild(tr);
+                });
+                
+                localStorage.setItem("departments", JSON.stringify(localBackup));
             });
         }
 
@@ -211,26 +214,31 @@
             const department = { name, semester, days, periods, sections, startTime, periodMinutes, lunchAfter, lunchDuration, 
                 snackAfter: snackAfter ? Number(snackAfter) : null, snackDuration: snackDuration ? Number(snackDuration) : null };
 
-            let departments = JSON.parse(localStorage.getItem("departments")) || [];
             const isPro = localStorage.getItem("isProUser") === "true";
-            if (!isPro && departments.length >= 1) { showToast("Free plan allows only 1 department. Upgrade to Pro."); return; }
+            
+            db.collection("departments").get().then((snap) => {
+                if (!isPro && snap.size >= 1) { 
+                    showToast("Free plan allows only 1 department. Upgrade to Pro."); 
+                    return; 
+                }
 
-            departments.push(department);
-            localStorage.setItem("departments", JSON.stringify(departments));
-            renderTable();
-            showToast("Department Added Successfully");
-            document.getElementById("deptName").value = "";
+                db.collection("departments").add(department).then(() => {
+                    renderTable();
+                    showToast("Department Added Successfully");
+                    document.getElementById("deptName").value = "";
+                }).catch((error) => {
+                    console.error("Error adding document: ", error);
+                });
+            });
         }
 
         document.addEventListener("DOMContentLoaded", function () {
-            // Pro Badge UI logic
             if(localStorage.getItem("isProUser") === "true"){
                 const logo = document.getElementById("logoText");
                 const badge = document.getElementById("proBadge");
                 if(logo && badge){ logo.classList.add("pro-user"); badge.innerText = "PRO"; }
             }
             
-            // Section Limit logic
             const sectionsInput = document.getElementById("sections");
             if(sectionsInput){
                 sectionsInput.addEventListener("input", function () {

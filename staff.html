@@ -9,9 +9,9 @@ display:none;
 }
 </style>
 
-
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
 
@@ -25,6 +25,8 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+// ADDED: Initialize Firestore
+const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(function(user){
 
@@ -66,7 +68,7 @@ word-break: break-all;
 <li><a href="dashboard.html">Dashboard</a></li>
 <li><a href="department.html">Department Setup</a></li>
 <li><a href="subject.html">Subject Management</a></li>
-<li><a href="staff.html">Staff Management</a></li>
+<li><a href="staff.html" class="active">Staff Management</a></li>
 <li><a href="section.html">Section Management</a></li>
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
@@ -239,37 +241,35 @@ setTimeout(()=>toast.classList.remove("show"),3000);
 }
 
 
-// ADDED FUNCTION: Checks if department is selected and blocks click if not
 function checkDeptFirst(event){
 const dept = document.getElementById("staffDept").value;
 if(!dept){
     event.preventDefault(); 
-    document.activeElement.blur(); // Removes focus to stop dropdown from opening
+    document.activeElement.blur();
     showToast("Please select a Department first");
 }
 }
 
 
+// UPDATED: Fetch Departments from Firestore for the dropdown
 function loadDepartments(){
 
-const departments=JSON.parse(localStorage.getItem("departments"))||[];
-
 const deptSelect=document.getElementById("staffDept");
-
 deptSelect.innerHTML=`<option value="">Select Department</option>`;
 
-departments.forEach(dep=>{
-deptSelect.innerHTML+=`<option value="${dep.name}">${dep.name}</option>`;
-});
+db.collection("departments").get().then((snap) => {
+    snap.forEach(doc => {
+        let dep = doc.data();
+        deptSelect.innerHTML+=`<option value="${dep.name}">${dep.name}</option>`;
+    });
+}).catch(err => console.log("Error loading departments", err));
 
 }
 
 
 
-// UPDATED FUNCTION: Now filters subjects based on the selected department
+// UPDATED: Fetch Subjects from Firestore for the dropdown
 function loadSubjects(){
-
-const subjects=JSON.parse(localStorage.getItem("subjects"))||[];
 
 const subjectSelect=document.getElementById("staffSubject");
 const dept = document.getElementById("staffDept").value;
@@ -277,162 +277,134 @@ const dept = document.getElementById("staffDept").value;
 subjectSelect.innerHTML=`<option value="">Select Subject</option>`;
 
 if(dept){
-    subjects.forEach(sub=>{
-        if(sub.dept === dept) {
+    db.collection("subjects").where("dept", "==", dept).get().then((snap) => {
+        snap.forEach(doc => {
+            let sub = doc.data();
             subjectSelect.innerHTML+=`<option value="${sub.name}">${sub.name}</option>`;
-        }
-    });
+        });
+    }).catch(err => console.log("Error loading subjects", err));
 }
 
 }
 
 
-
-
+// UPDATED: Fetch Department info from Firestore for Section Logic
 function loadSections(){
 
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
-
 const dept = document.getElementById("staffDept").value;
-
 const sectionSelect = document.getElementById("staffSection");
 
 sectionSelect.innerHTML = `<option value="">Select Section</option>`;
 
-departments.forEach(dep => {
+if(dept){
+    db.collection("departments").where("name", "==", dept).get().then((snap) => {
+        snap.forEach(doc => {
+            let dep = doc.data();
+            let totalSections = Number(dep.sections);
 
-if(dep.name === dept){
-
-let totalSections = Number(dep.sections);
-
-for(let i=0;i<totalSections;i++){
-
-let sectionLetter = String.fromCharCode(65 + i);
-
-sectionSelect.innerHTML += `
-<option value="${sectionLetter}">
-${sectionLetter}
-</option>
-`;
-
+            for(let i=0;i<totalSections;i++){
+                let sectionLetter = String.fromCharCode(65 + i);
+                sectionSelect.innerHTML += `<option value="${sectionLetter}">${sectionLetter}</option>`;
+            }
+        });
+    }).catch(err => console.log("Error loading sections", err));
 }
 
 }
 
-});
-
-}
 
 
-
-
+// UPDATED: Save directly to Firestore
 function addStaff(){
 
 const name=document.getElementById("staffName").value.trim();
-
 const dept=document.getElementById("staffDept").value;
-
 const section=document.getElementById("staffSection").value;
-
 const subject=document.getElementById("staffSubject").value;
-
 const maxLoad=Number(document.getElementById("maxLoad").value);
 
 if(!name||!dept||!section||!subject){
-
 showToast("Please fill all details");
-
 return;
-
 }
 
-let staffList=JSON.parse(localStorage.getItem("staff"))||[];
+const newStaff = {
+    name: name,
+    dept: dept,
+    section: section,
+    subject: subject,
+    maxLoad: maxLoad
+};
 
-staffList.push({
-name,
-dept,
-section,
-subject,
-maxLoad
+db.collection("staff").add(newStaff).then(() => {
+    renderStaff();
+    showToast("Staff Added Successfully");
+    document.getElementById("staffName").value="";
+    document.getElementById("maxLoad").value=1; // Reset to 1 based on min HTML attribute
+}).catch((error) => {
+    console.error("Error adding staff: ", error);
+    showToast("Error adding staff");
 });
 
-localStorage.setItem("staff",JSON.stringify(staffList));
-
-renderStaff();
-
-showToast("Staff Added Successfully");
-
-document.getElementById("staffName").value="";
-document.getElementById("maxLoad").value=0;
-
 }
 
 
 
+// UPDATED: Read Staff data directly from Firestore
 function renderStaff(){
 
-const staffList=JSON.parse(localStorage.getItem("staff"))||[];
-
 const table=document.getElementById("staffTable");
-
 table.innerHTML="";
 
-staffList.forEach((staff,index)=>{
+let localBackup = [];
 
-table.innerHTML+=`
+db.collection("staff").get().then((snap) => {
+    snap.forEach((doc) => {
+        const staff = doc.data();
+        const docId = doc.id;
+        
+        localBackup.push(staff);
 
-<tr>
+        table.innerHTML+=`
+        <tr>
+            <td>${staff.name}</td>
+            <td>${staff.subject}</td>
+            <td>${staff.dept}</td>
+            <td>${staff.section}</td>
+            <td>${staff.maxLoad}</td>
+            <td>
+                <button class="delete-icon-btn" onclick="deleteStaff('${docId}')">Delete</button>
+            </td>
+        </tr>
+        `;
+    });
+    
+    // Safety backup so unmigrated pages still work
+    localStorage.setItem("staff", JSON.stringify(localBackup));
 
-<td>${staff.name}</td>
+}).catch((error) => console.error("Error reading staff:", error));
 
-<td>${staff.subject}</td>
+}
 
-<td>${staff.dept}</td>
 
-<td>${staff.section}</td>
 
-<td>${staff.maxLoad}</td>
+// UPDATED: Delete directly from Firestore
+function deleteStaff(docId){
 
-<td>
-
-<button class="delete-icon-btn" onclick="deleteStaff(${index})">
-
-Delete
-
-</button>
-
-</td>
-
-</tr>
-
-`;
-
+db.collection("staff").doc(docId).delete().then(() => {
+    renderStaff();
+    showToast("Staff Deleted Successfully");
+}).catch((error) => {
+    console.error("Error removing staff: ", error);
+    showToast("Error deleting staff");
 });
 
 }
 
 
-
-
-function deleteStaff(index){
-
-let staffList=JSON.parse(localStorage.getItem("staff"))||[];
-
-staffList.splice(index,1);
-
-localStorage.setItem("staff",JSON.stringify(staffList));
-
-renderStaff();
-
-showToast("Staff Deleted Successfully");
-
-}
-
-
-
-
+// INITIAL LOAD CALLS
 loadDepartments();
-loadSubjects();
+// NOTE: loadSubjects and loadSections are triggered dynamically by the onchange event of the dropdown.
 renderStaff();
 
 

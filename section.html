@@ -9,9 +9,9 @@ display:none;
 }
 </style>
 
-
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
 
@@ -25,6 +25,8 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+// ADDED: Initialize Firestore
+const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(function(user){
 
@@ -88,7 +90,7 @@ cursor:not-allowed;
 <li><a href="department.html">Department Setup</a></li>
 <li><a href="subject.html">Subject Management</a></li>
 <li><a href="staff.html">Staff Management</a></li>
-<li><a href="section.html">Section Management</a></li>
+<li><a href="section.html" class="active">Section Management</a></li>
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
 
@@ -192,143 +194,122 @@ setTimeout(()=>toast.classList.remove("show"),3000);
 }
 
 
+// UPDATED: Now fetches Departments and Sections directly from Firestore
+async function loadSectionCards(){
 
-
-function loadSectionCards(){
-
-const departments = JSON.parse(localStorage.getItem("departments")) || [];
 const container = document.getElementById("sectionContainer");
-
 container.innerHTML="";
 
-if(departments.length===0){
+try {
+    // Fetch Departments
+    const depSnap = await db.collection("departments").get();
+    let departments = [];
+    depSnap.forEach(doc => departments.push(doc.data()));
 
-container.innerHTML=`
-<div class="form-card">
-<p>No departments configured yet.</p>
-</div>
-`;
+    if(departments.length===0){
+        container.innerHTML=`
+        <div class="form-card">
+        <p>No departments configured yet.</p>
+        </div>
+        `;
+        return;
+    }
 
-return;
+    // Fetch Sections
+    const secSnap = await db.collection("sections").get();
+    let allSectionsMap = {};
+    secSnap.forEach(doc => {
+        allSectionsMap[doc.id] = doc.data().sectionsList; 
+    });
+
+    let finalHTML = "";
+
+    departments.forEach(dep=>{
+
+        const key = dep.name+"_sem_"+dep.semester;
+        const savedSections = allSectionsMap[key];
+
+        let sectionHTML="";
+        let buttonHTML="";
+
+        if(savedSections && savedSections.length>0){
+            savedSections.forEach(sec=>{
+                sectionHTML+=`<span class="section-pill">${sec}</span>`;
+            });
+            buttonHTML=`<button class="generated-btn">Generated</button>`;
+        }else{
+            sectionHTML=`
+            <p style="margin-top:10px;color:#666;">
+            No sections generated yet. Click Generate above.
+            </p>
+            `;
+            buttonHTML=`
+            <button class="add-btn"
+            onclick="generateSections('${dep.name}','${dep.semester}',${dep.sections})">
+            Generate
+            </button>
+            `;
+        }
+
+        finalHTML+=`
+        <div class="form-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <h3>${dep.name} — Semester ${dep.semester}</h3>
+                    <p>Configured for ${dep.sections} section(s)</p>
+                </div>
+                ${buttonHTML}
+            </div>
+            <div style="margin-top:15px;">
+                ${sectionHTML}
+            </div>
+        </div>
+        `;
+    });
+
+    container.innerHTML = finalHTML;
+
+} catch(error) {
+    console.error("Error loading sections:", error);
+}
 
 }
 
-departments.forEach(dep=>{
 
-const key = dep.name+"_sem_"+dep.semester;
-
-
-const savedSections = JSON.parse(localStorage.getItem("sections_"+key));
-
-let sectionHTML="";
-let buttonHTML="";
-
-
-
-if(savedSections && savedSections.length>0){
-
-savedSections.forEach(sec=>{
-sectionHTML+=`<span class="section-pill">${sec}</span>`;
-});
-
-buttonHTML=`<button class="generated-btn">Generated</button>`;
-
-}else{
-
-sectionHTML=`
-<p style="margin-top:10px;color:#666;">
-No sections generated yet. Click Generate above.
-</p>
-`;
-
-buttonHTML=`
-<button class="add-btn"
-onclick="generateSections('${dep.name}','${dep.semester}',${dep.sections})">
-Generate
-</button>
-`;
-
-}
-
-container.innerHTML+=`
-
-<div class="form-card">
-
-<div style="display:flex;justify-content:space-between;align-items:center;">
-
-<div>
-<h3>${dep.name} — Semester ${dep.semester}</h3>
-<p>Configured for ${dep.sections} section(s)</p>
-</div>
-
-${buttonHTML}
-
-</div>
-
-<div style="margin-top:15px;">
-${sectionHTML}
-</div>
-
-</div>
-
-`;
-
-});
-
-}
-
-
-
-
-function generateSections(name,semester,count){
+// UPDATED: Now saves the generated sections directly to Firestore
 function generateSections(name,semester,count){
 
+    const isPro = localStorage.getItem("isProUser") === "true";
 
-const isPro = localStorage.getItem("isProUser") === "true";
+    if(!isPro && count > 1){
+        showToast("Free plan allows only 1 section. Upgrade to Pro.");
+        return;
+    }
 
-if(!isPro && count > 1){
-showToast("Free plan allows only 1 section. Upgrade to Pro.");
-return;
+    const letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let sectionsList=[];
+
+    for(let i=0;i<count;i++){
+        sectionsList.push(`${name}-${letters[i]}`);
+    }
+
+    const key=name+"_sem_"+semester;
+
+    // Save to Firestore
+    db.collection("sections").doc(key).set({
+        department: name,
+        semester: semester,
+        sectionsList: sectionsList
+    }).then(() => {
+        // Keep a local backup so older pages don't break during migration
+        localStorage.setItem("sections_"+key, JSON.stringify(sectionsList));
+        showToast("Sections generated");
+        loadSectionCards();
+    }).catch((error) => {
+        console.error("Error generating sections: ", error);
+        showToast("Error generating sections");
+    });
 }
-
-const letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-let sections=[];
-
-for(let i=0;i<count;i++){
-sections.push(`${name}-${letters[i]}`);
-}
-
-const key=name+"_sem_"+semester;
-
-
-
-localStorage.setItem("sections_"+key,JSON.stringify(sections));
-
-showToast("Sections generated");
-
-loadSectionCards();
-
-}
-const letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-let sections=[];
-
-for(let i=0;i<count;i++){
-sections.push(`${name}-${letters[i]}`);
-}
-
-const key=name+"_sem_"+semester;
-
-
-
-localStorage.setItem("sections_"+key,JSON.stringify(sections));
-
-showToast("Sections generated");
-
-loadSectionCards();
-
-}
-
-
 
 
 loadSectionCards();
