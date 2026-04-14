@@ -88,7 +88,6 @@ word-break: break-all;
 </div>
 
 
-<!-- CONTENT AREA -->
 <div class="content-area">
 
 <div class="top-navbar">
@@ -106,7 +105,6 @@ VELS Faculty Scheduling System
 </div>
 
 
-<!-- FORM -->
 <div class="form-card">
 
 <h3>Add Staff Member</h3>
@@ -120,28 +118,28 @@ VELS Faculty Scheduling System
 
 <div>
 <label>Department</label>
-<select id="staffDept" onchange="loadSections()">
+<select id="staffDept" onchange="loadSections(); loadSubjects();">
 <option value="">Select Department</option>
 </select>
 </div>
 
 <div>
 <label>Section</label>
-<select id="staffSection">
+<select id="staffSection" onmousedown="checkDeptFirst(event)" ontouchstart="checkDeptFirst(event)">
 <option value="">Select Section</option>
 </select>
 </div>
 
 <div>
 <label>Assign Subject</label>
-<select id="staffSubject">
+<select id="staffSubject" onmousedown="checkDeptFirst(event)" ontouchstart="checkDeptFirst(event)">
 <option value="">Select Subject</option>
 </select>
 </div>
 
 <div>
 <label>Max Workload (periods/week)</label>
-<input type="number" id="maxLoad" value="0" min="0" max="40">
+<input type="number" id="maxLoad" value="0" min="1" max="20">
 </div>
 
 <div class="add-btn-box">
@@ -151,8 +149,6 @@ VELS Faculty Scheduling System
 </div>
 </div>
 
-
-<!-- STAFF TABLE -->
 
 <div class="table-card">
 
@@ -242,6 +238,15 @@ setTimeout(()=>toast.classList.remove("show"),3000);
 }
 
 
+// ADDED FUNCTION: Checks if department is selected and blocks click if not
+function checkDeptFirst(event){
+const dept = document.getElementById("staffDept").value;
+if(!dept){
+    event.preventDefault(); 
+    document.activeElement.blur(); // Removes focus to stop dropdown from opening
+    showToast("Please select a Department first");
+}
+}
 
 
 function loadDepartments(){
@@ -260,18 +265,23 @@ deptSelect.innerHTML+=`<option value="${dep.name}">${dep.name}</option>`;
 
 
 
-
+// UPDATED FUNCTION: Now filters subjects based on the selected department
 function loadSubjects(){
 
 const subjects=JSON.parse(localStorage.getItem("subjects"))||[];
 
 const subjectSelect=document.getElementById("staffSubject");
+const dept = document.getElementById("staffDept").value;
 
 subjectSelect.innerHTML=`<option value="">Select Subject</option>`;
 
-subjects.forEach(sub=>{
-subjectSelect.innerHTML+=`<option value="${sub.name}">${sub.name}</option>`;
-});
+if(dept){
+    subjects.forEach(sub=>{
+        if(sub.dept === dept) {
+            subjectSelect.innerHTML+=`<option value="${sub.name}">${sub.name}</option>`;
+        }
+    });
+}
 
 }
 
