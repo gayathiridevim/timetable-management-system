@@ -91,7 +91,7 @@
         document.addEventListener("DOMContentLoaded", function(){
             firebase.auth().onAuthStateChanged(function(user){
                 if(user){
-                    document.getElementById("userEmail").innerText = (user.email === "gayathridevi182005@gmail.com") ? "Admin" : user.email;
+                    document.getElementById("userEmail").innerText = user.email;
                 }
             });
             loadDepartments();
