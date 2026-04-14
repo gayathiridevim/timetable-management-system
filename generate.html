@@ -10,7 +10,6 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
     <script>
         const firebaseConfig = {
@@ -23,8 +22,6 @@
         };
 
         firebase.initializeApp(firebaseConfig);
-        // ADDED: Initialize Firestore
-        const db = firebase.firestore();
 
         firebase.auth().onAuthStateChanged(function(user){
             if(user){
@@ -55,7 +52,7 @@
                 <li><a href="subject.html">Subject Management</a></li>
                 <li><a href="staff.html">Staff Management</a></li>
                 <li><a href="section.html">Section Management</a></li>
-                <li><a href="generate.html" class="active">Generate Timetable</a></li>
+                <li><a href="generate.html">Generate Timetable</a></li>
                 <li><a href="view.html">View Timetable</a></li>
                 
                 <li><a href="faculty.html">Staff Timetable</a></li>
@@ -99,48 +96,26 @@
             });
             loadDepartments();
             document.getElementById("departmentSelect").addEventListener("change", showDepartmentDetails);
-            
-            if(localStorage.getItem("isProUser") === "true"){
-                const logo = document.getElementById("logoText");
-                const badge = document.getElementById("proBadge");
-                if(logo && badge){ logo.classList.add("pro-user"); badge.innerText = "PRO"; }
-            }
         });
 
-        function logout(){ firebase.auth().signOut().then(()=>window.location.replace("index.html")); }
-
-        function showToast(m){
-            const t = document.getElementById("toast");
-            t.innerText = m; t.classList.add("show");
-            setTimeout(()=>t.classList.remove("show"), 3000);
-        }
-
-        // UPDATED: Fetch departments from Firestore
         function loadDepartments(){
-            db.collection("departments").get().then((snap) => {
-                const select = document.getElementById("departmentSelect");
-                select.innerHTML = `<option value="">Select Department</option>`;
-                snap.forEach(doc => {
-                    const dep = doc.data();
-                    const key = dep.name + "_sem_" + dep.semester;
-                    const option = document.createElement("option");
-                    option.value = key;
-                    option.textContent = dep.name + " — Sem " + dep.semester;
-                    select.appendChild(option);
-                });
+            const departments = JSON.parse(localStorage.getItem("departments")) || [];
+            const select = document.getElementById("departmentSelect");
+            select.innerHTML = `<option value="">Select Department</option>`;
+            departments.forEach(dep => {
+                const key = dep.name + "_sem_" + dep.semester;
+                const option = document.createElement("option");
+                option.value = key;
+                option.textContent = dep.name + " — Sem " + dep.semester;
+                select.appendChild(option);
             });
         }
 
-        // UPDATED: Read details from Firestore
-        async function showDepartmentDetails(){
+        function showDepartmentDetails(){
             const selected = document.getElementById("departmentSelect").value;
+            const departments = JSON.parse(localStorage.getItem("departments")) || [];
             const box = document.getElementById("summaryBox");
             if(!selected){ box.innerHTML = ""; return; }
-            
-            const snap = await db.collection("departments").get();
-            let departments = [];
-            snap.forEach(doc => departments.push(doc.data()));
-
             const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
             if(!dep) return;
             box.innerHTML = `<div style="background:#f7f7f7;padding:15px;border-radius:8px;line-height:1.6;">
@@ -150,67 +125,34 @@
             </div>`;
         }
 
-        // UPDATED: Fully Async Firestore Math Engine
-        async function generateTimetable(){
+        function generateTimetable(){
             const selectedDept = document.getElementById("departmentSelect").value;
             if(!selectedDept){ showToast("Select department"); return; }
 
-            showToast("Generating timetable, please wait...");
-
-            // Fetch ALL needed data from Firestore simultaneously
-            const [deptSnap, subjSnap, staffSnap, secSnap, ttSnap] = await Promise.all([
-                db.collection("departments").get(),
-                db.collection("subjects").get(),
-                db.collection("staff").get(),
-                db.collection("sections").get(),
-                db.collection("timetables").get()
-            ]);
-
-            let departments = []; deptSnap.forEach(d => departments.push(d.data()));
-            let subjects = []; subjSnap.forEach(d => subjects.push(d.data()));
-            let staffList = []; staffSnap.forEach(d => staffList.push(d.data()));
-            
-            const targetDept = selectedDept.split("_sem_")[0];
-            const targetSem = selectedDept.split("_sem_")[1];
-
-            // FIXED: Handle new Firestore sectionsList array format safely to prevent "undefined"
-            let sections = [];
-            secSnap.forEach(doc => {
-                let sec = doc.data();
-                if(sec.department === targetDept || (sec.dept && sec.dept === targetDept)) {
-                    if (sec.sectionsList) {
-                        sec.sectionsList.forEach(sName => {
-                            let shortName = sName.includes("-") ? sName.split("-")[1] : sName;
-                            sections.push({ name: shortName, department: targetDept });
-                        });
-                    } else {
-                        sections.push({ name: sec.name || sec.section, department: targetDept });
-                    }
-                }
-            });
-            
-            if(sections.length === 0) {
-                const sectionsKey = "sections_" + selectedDept;
-                const rawSections = JSON.parse(localStorage.getItem(sectionsKey)) || [];
-                sections = rawSections.map(sec => ({ name: (sec.includes("-") ? sec.split("-")[1] : sec), department: sec.split("-")[0] }));
-            }
+            const sectionsKey = "sections_" + selectedDept;
+            const rawSections = JSON.parse(localStorage.getItem(sectionsKey)) || [];
+            const sections = rawSections.map(sec => ({ name: sec.split("-")[1], department: sec.split("-")[0] }));
+            const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+            const staffList = JSON.parse(localStorage.getItem("staff")) || [];
+            const departments = JSON.parse(localStorage.getItem("departments")) || [];
 
             let deptData = departments.find(d => (d.name + "_sem_" + d.semester) === selectedDept);
             const days = deptData ? Number(deptData.days) : 5;
             const periods = deptData ? Number(deptData.periods) : 6;
+            const targetDept = selectedDept.split("_sem_")[0];
+            const targetSem = selectedDept.split("_sem_")[1];
 
             // Filter subjects strictly by Dept and Sem
-            const deptSubjects = subjects.filter(s => (s.dept || "").toLowerCase() === (targetDept || "").toLowerCase() && s.sem == targetSem);
+            const deptSubjects = subjects.filter(s => s.dept.toLowerCase() === targetDept.toLowerCase() && s.sem == targetSem);
 
             let cleanKey = selectedDept.replace(/\s+/g, "_").replace(/[^\w]/g, "");
 
-            // --- 1. BUILD GLOBAL STAFF BUSY MAP FROM FIRESTORE TIMETABLES ---
+            // --- 1. BUILD GLOBAL STAFF BUSY MAP ---
             let globalStaffBusy = {}; 
-            ttSnap.forEach(doc => {
-                let key = doc.id; // Get the timetable document ID
+            for(let key in localStorage){
                 if(key.startsWith("timetable_") && key !== `timetable_${cleanKey}`){
                     try {
-                        let existingData = doc.data(); // The grid object
+                        let existingData = JSON.parse(localStorage.getItem(key));
                         for(let secKey in existingData){
                             let grid = existingData[secKey];
                             for(let d=0; d<grid.length; d++){
@@ -227,12 +169,11 @@
                         }
                     } catch(e) { console.error("Parse error:", e); }
                 }
-            });
+            }
 
             let timetable = {};
             let generationSuccess = true;
 
-            // --- EXACT SAME CONFLICT-FREE LOGIC ALGORITHM ---
             sections.forEach(section => {
                 let subjectQueue = [];
                 deptSubjects.forEach(sub => {
@@ -243,21 +184,20 @@
 
                 let bestGrid = null;
                 let success = false;
-                let maxAttempts = 150; 
+                let maxAttempts = 150; // High retry count for tight schedules
 
+                // 2. RETRY LOOP FOR FLAWLESS PLACEMENT
                 for(let attempt=0; attempt<maxAttempts; attempt++) {
                     let grid = Array.from({length: days}, () => Array(periods).fill(""));
-                    let tempStaffBusy = JSON.parse(JSON.stringify(globalStaffBusy)); 
-                    let localQueue = [...subjectQueue].sort(() => Math.random() - 0.5); 
+                    let tempStaffBusy = JSON.parse(JSON.stringify(globalStaffBusy)); // Copy global state
+                    let localQueue = [...subjectQueue].sort(() => Math.random() - 0.5); // Randomize placement
                     let allPlaced = true;
 
                     for(let subObj of localQueue) {
-                        
-                        // FIXED: Added safe (var || "").toLowerCase() to prevent the undefined crash
                         let staffObj = staffList.find(s => 
-                            (s.subject || "").toLowerCase() === (subObj.name || "").toLowerCase() &&
-                            (s.dept || "").toLowerCase() === (targetDept || "").toLowerCase() &&
-                            (s.section || "").toLowerCase() === (section.name || "").toLowerCase()
+                            s.subject.toLowerCase() === subObj.name.toLowerCase() &&
+                            s.dept.toLowerCase() === targetDept.toLowerCase() &&
+                            s.section.toLowerCase() === section.name.toLowerCase()
                         );
                         let staffName = staffObj ? staffObj.name : "Unassigned";
 
@@ -267,7 +207,7 @@
                                 if(grid[d][p] === "") freeSlots.push({d, p});
                             }
                         }
-                        freeSlots.sort(() => Math.random() - 0.5); 
+                        freeSlots.sort(() => Math.random() - 0.5); // Randomize slot picking
 
                         let placed = false;
                         
@@ -275,9 +215,7 @@
                         for(let slot of freeSlots){
                             let slotKey = `${slot.d}-${slot.p}`;
                             let staffIsBusy = tempStaffBusy[staffName] && tempStaffBusy[staffName].includes(slotKey);
-                            
-                            // FIXED: Added safe || "" to the grid string check
-                            let isBackToBack = (slot.p > 0 && (grid[slot.d][slot.p-1] || "").includes(subObj.name || ""));
+                            let isBackToBack = (slot.p > 0 && grid[slot.d][slot.p-1].includes(subObj.name));
 
                             if(!staffIsBusy && !isBackToBack && staffName !== "Unassigned") {
                                 grid[slot.d][slot.p] = JSON.stringify({
@@ -330,18 +268,26 @@
                 }
             });
 
-            // Save to Firestore
             if(generationSuccess) {
-                db.collection("timetables").doc(`timetable_${cleanKey}`).set(timetable)
-                .then(() => {
-                    // Backup to localStorage just so other pages don't break while migrating
-                    localStorage.setItem(`timetable_${cleanKey}`, JSON.stringify(timetable));
-                    showToast("Timetable generated successfully with ZERO clashes!");
-                }).catch((error) => {
-                    console.error("Error saving timetable:", error);
-                    showToast("Error saving timetable to cloud.");
-                });
+                localStorage.setItem(`timetable_${cleanKey}`, JSON.stringify(timetable));
+                showToast("Timetable generated successfully with ZERO clashes!");
             }
+        }
+
+        function showToast(m){
+            const t = document.getElementById("toast");
+            t.innerText = m; t.classList.add("show");
+            setTimeout(()=>t.classList.remove("show"), 3000);
+        }
+
+        function logout(){ firebase.auth().signOut().then(()=>window.location.replace("index.html")); }
+
+        // Pro Badge Logic
+        if(localStorage.getItem("isProUser") === "true"){
+            window.onload = () => {
+                document.getElementById("logoText").classList.add("pro-user");
+                document.getElementById("proBadge").innerText = "PRO";
+            };
         }
     </script>
 </body>
