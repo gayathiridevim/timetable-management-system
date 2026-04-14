@@ -209,7 +209,8 @@ let originalTables = {};
 // UPDATED: Now fetches Departments, Staff, and Timetables directly from Firestore
 async function loadStaffTimetable(){
 
-  const selected = document.getElementById("staffSelect").value.trim().toLowerCase();
+  const selectedRaw = document.getElementById("staffSelect").value;
+  const selected = (selectedRaw || "").trim().toLowerCase();
   const container = document.getElementById("staffContainer");
 
   // Validation for Empty Staff Selection
@@ -221,9 +222,9 @@ async function loadStaffTimetable(){
 
   try {
       // 1. Fetch Staff Data
-      let staffQuery = await db.collection("staff").where("name", "==", selected).limit(1).get();
+      let staffQuery = await db.collection("staff").where("name", "==", selectedRaw).limit(1).get();
       let matchedStaff = staffQuery.empty ? null : staffQuery.docs[0].data();
-      let primaryDeptName = matchedStaff ? (matchedStaff.dept || "").trim().toLowerCase() : "";
+      let primaryDeptName = matchedStaff ? (matchedStaff.dept || "").trim() : "";
 
       // 2. Fetch Department Data
       let deptQuery = await db.collection("departments").where("name", "==", primaryDeptName).limit(1).get();
@@ -251,34 +252,36 @@ async function loadStaffTimetable(){
       let timetablesSnapshot = await db.collection("timetables").get();
 
       timetablesSnapshot.forEach((doc) => {
-          let data = doc.data(); // This holds the sections object
+          let data = doc.data(); 
           
-          for(let section in data){
-              let grid = data[section];
+          for(let sectionKey in data){
+              let grid = data[sectionKey];
 
-              for(let d=0; d<grid.length; d++){
-                  for(let p=0; p<grid[d].length; p++){
+              for(let d=0; d < daysCount; d++){
+                  let row = grid[d] || [];
+                  for(let p=0; p < periods; p++){
 
-                      let cell = (grid[d][p] || "").trim();
+                      let cell = row[p];
                       if(!cell) continue;
 
                       let subject = "";
                       let staffFromTT = "";
 
+                      // FIXED READING LOGIC FOR FIRESTORE OBJECTS
                       try {
-                          let parsed = JSON.parse(cell);
-                          subject = (parsed.subject || "").toLowerCase();
+                          let parsed = typeof cell === "string" ? JSON.parse(cell) : cell;
+                          subject = (parsed.subject || "");
                           staffFromTT = (parsed.staff || "").toLowerCase();
                       } catch(e) {
-                          let parts = cell.split("|");
-                          subject = parts[0]?.trim().toLowerCase();
-                          staffFromTT = parts[1]?.trim().toLowerCase();
+                          let parts = String(cell).split("|");
+                          subject = parts[0]?.trim() || "";
+                          staffFromTT = parts[1]?.trim().toLowerCase() || "";
                       }
 
                       // match ONLY staff name and ensure it fits within boundary
                       if(staffFromTT === selected && timetable[days[d]] && p < periods){
                           timetable[days[d]][p] = 
-                            `<div style="font-weight:bold;">${subject.toUpperCase()}<br><span style="font-size:10px; color:blue;">(${section})</span></div>`;
+                            `<div style="font-weight:bold;">${subject.toUpperCase()}<br><span style="font-size:10px; color:blue;">(${sectionKey.split('-').pop()})</span></div>`;
                       }
                   }
               }
@@ -289,11 +292,11 @@ async function loadStaffTimetable(){
       let html = `
       <div class="form-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px;">
-            <h2 style="margin:0;">${selected.toUpperCase()} - Timetable</h2>
+            <h2 style="margin:0;">${selectedRaw.toUpperCase()} - Timetable</h2>
             <div style="display:flex; gap:8px; align-items:center;">
                 <button onclick="editTimetable('staff')" style="background:#3498db;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">Edit</button>
                 <span id="controls-staff" style="display:none"><button onclick="saveEdit('staff')" style="background:#27ae60;color:white;border:none;padding:6px 12px;border-radius:4px;">✔</button></span>
-                <button onclick="downloadPDF('staff', '${selected}', '${dept.name || primaryDeptName}')" style="background:#34495e;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">PDF</button>
+                <button onclick="downloadPDF('staff', '${selectedRaw}', '${dept.name || primaryDeptName}')" style="background:#34495e;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">PDF</button>
             </div>
         </div>
         <table id="table-staff" border="1" style="width:100%;border-collapse:collapse;text-align:center;background:white;">
@@ -353,32 +356,20 @@ function saveEdit(sec){
 }
 
 async function downloadPDF(sec, staffName, deptName){
-    
-    // 1. Generate Canvas
     const canvas = await html2canvas(document.querySelector(`#table-${sec}`));
     const imgData = canvas.toDataURL("image/png");
-    
-    // 2. Calculate Perfect PDF Dimensions
     const pdfWidth = 297; 
     const imgWidth = 277; 
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    // Auto-adjust page height
     const pdfHeight = imgHeight + 40; 
-    
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF("l", "mm", [pdfWidth, pdfHeight]);
-    
-    // 3. Add Headers to PDF
     pdf.setFontSize(16);
     pdf.setFont("helvetica", "bold");
     pdf.text(`Staff Name: ${staffName.toUpperCase()}`, 10, 15);
-    
     pdf.setFontSize(12);
     pdf.setFont("helvetica", "normal");
     pdf.text(`Department: ${deptName.toUpperCase()}`, 10, 23);
-    
-    // 4. Add Table Image & Save
     pdf.addImage(imgData, 'PNG', 10, 30, imgWidth, imgHeight);
     pdf.save(`${staffName}_timetable.pdf`);
 }
