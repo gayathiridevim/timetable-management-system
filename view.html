@@ -251,6 +251,10 @@ async function loadTimetables(){
 }
 
 function editTimetable(sec){
+    if(localStorage.getItem("isProUser") !== "true"){
+        showCustomToast("Upgrade to PRO to unlock Edit and PDF features");
+        return;
+    }
     const card = document.getElementById(`card-${sec}`);
     card.classList.add("edit-mode");
     document.querySelectorAll(`#table-${sec} .editable-cell div`).forEach(div => {
@@ -273,6 +277,10 @@ function saveEdit(sec){
 }
 
 async function downloadPDF(sec, deptName, semNum, secLetter){
+    if(localStorage.getItem("isProUser") !== "true"){
+        showCustomToast("Upgrade to PRO to unlock Edit and PDF features");
+        return;
+    }
     const inchargeInput = document.getElementById(`incharge-${sec}`);
     const inchargeName = inchargeInput ? inchargeInput.value.trim() : "";
     if(!inchargeName){
