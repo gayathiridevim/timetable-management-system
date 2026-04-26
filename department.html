@@ -22,22 +22,30 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        firebase.auth().onAuthStateChanged(function(user){
-            if(user){
-                document.body.style.display = "block";
-                const proUsers = ["staff@college.com", "hod@college.com", "gayathiridevi182005@gmail.com"];
-                if(proUsers.includes(user.email)){ localStorage.setItem("isProUser","true"); }
-                
-                const emailElement = document.getElementById("userEmail");
-                if(emailElement){ 
-                    emailElement.style.visibility = "visible";
-                    emailElement.innerText = user.email; 
-                }
-                renderTable();
-            } else {
-                window.location.replace("index.html");
-            }
-        });
+       firebase.auth().onAuthStateChanged(function(user){
+    if(user){
+        document.body.style.display = "block";
+        const proUsers = ["staff@college.com", "hod@college.com", "gayathiridevi182005@gmail.com"];
+        
+        // --- Added the else part here ---
+        if(proUsers.includes(user.email)){ 
+            localStorage.setItem("isProUser","true"); 
+        } else {
+            localStorage.setItem("isProUser","false");
+            localStorage.removeItem("proUsers");
+        }
+        // --------------------------------
+        
+        const emailElement = document.getElementById("userEmail");
+        if(emailElement){ 
+            emailElement.style.visibility = "visible";
+            emailElement.innerText = user.email; 
+        }
+        renderTable();
+    } else {
+        window.location.replace("index.html");
+    }
+});
     </script>
 </head>
 

@@ -198,8 +198,12 @@ const proUsers = [
 ];
 
 if(proUsers.includes(user.email)){
-localStorage.setItem("isProUser","true");
-}
+            localStorage.setItem("isProUser","true");
+        } else {
+            // ADD THESE TWO LINES STARTING AT LINE 185
+            localStorage.setItem("isProUser","false");
+            localStorage.removeItem("proUsers");
+        }
 
 const emailElement = document.getElementById("userEmail");
 

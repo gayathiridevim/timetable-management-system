@@ -35,27 +35,30 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(function(user){
+    if(user){
+        document.body.style.display="block";
 
-if(user){
-document.body.style.display="block";
+        const proUsers = [
+            "staff@college.com",
+            "hod@college.com",
+            "gayathiridevi182005@gmail.com"
+        ];
 
-const proUsers = [
-"staff@college.com",
-"hod@college.com",
-"gayathiridevi182005@gmail.com"
-];
+        // --- Added the else part here ---
+        if(proUsers.includes(user.email)){
+            localStorage.setItem("isProUser","true");
+        } else {
+            localStorage.setItem("isProUser","false");
+            localStorage.removeItem("proUsers");
+        }
+        // --------------------------------
 
-if(proUsers.includes(user.email)){
-localStorage.setItem("isProUser","true");
-}
-
-document.getElementById("userEmail").innerText=user.email;
-loadStaff(); // Call loadStaff here to ensure user is logged in
-}
-else{
-window.location.replace("index.html");
-}
-
+        document.getElementById("userEmail").innerText=user.email;
+        loadStaff(); // Call loadStaff here to ensure user is logged in
+    }
+    else{
+        window.location.replace("index.html");
+    }
 });
 </script>
 

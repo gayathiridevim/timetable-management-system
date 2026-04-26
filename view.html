@@ -42,13 +42,29 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(user => {
-    if(user){ 
-        document.body.style.display = "block"; 
+    if(user){
+        document.body.style.display = "block";
+
+        // 1. Pro List
+        const proUsers = ["staff@college.com", "hod@college.com", "gayathiridevi182005@gmail.com"];
+
+        // 2. Pro Check Logic
+        if(proUsers.includes(user.email)){
+            localStorage.setItem("isProUser","true");
+        } else {
+            localStorage.setItem("isProUser","false");
+            localStorage.removeItem("proUsers");
+        }
+
+        // 3. Define the emailBox (This was missing!)
         const emailBox = document.getElementById("userEmail");
-        if(emailBox) emailBox.innerText = user.email;
+        if(emailBox) {
+            emailBox.innerText = user.email;
+        }
+
         loadTimetables();
-    } else { 
-        window.location.replace("index.html"); 
+    } else {
+        window.location.replace("index.html");
     }
 });
 </script>

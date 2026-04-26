@@ -55,7 +55,8 @@ if(ADMIN_EMAILS.includes(email)){
 if(proUsers.includes(email)){
   localStorage.setItem("isProUser","true");
 } else {
-  localStorage.setItem("isProUser","false");
+    localStorage.setItem("isProUser", "false"); 
+    localStorage.removeItem("proUsers"); // This is the line that clears the "memory"
 }
 
 const emailElement = document.getElementById("userEmail");

@@ -36,30 +36,35 @@ const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(function(user){
 
-if(user){
+    if(user){
 
-document.body.style.display = "block";
+        document.body.style.display = "block";
 
-const proUsers = [
-"staff@college.com",
-"hod@college.com",
-"gayathiridevi182005@gmail.com"
-];
+        const proUsers = [
+            "staff@college.com",
+            "hod@college.com",
+            "gayathiridevi182005@gmail.com"
+        ];
 
-if(proUsers.includes(user.email)){
-localStorage.setItem("isProUser","true");
-}
+        // --- Added the else part here ---
+        if(proUsers.includes(user.email)){
+            localStorage.setItem("isProUser","true");
+        } else {
+            localStorage.setItem("isProUser","false");
+            localStorage.removeItem("proUsers");
+        }
+        // --------------------------------
 
-const emailElement = document.getElementById("userEmail");
+        const emailElement = document.getElementById("userEmail");
 
-if(emailElement){
-emailElement.innerText = user.email;
-}
+        if(emailElement){
+            emailElement.innerText = user.email;
+        }
 
-}
-else{
-window.location.replace("index.html");
-}
+    }
+    else{
+        window.location.replace("index.html");
+    }
 
 });
 
