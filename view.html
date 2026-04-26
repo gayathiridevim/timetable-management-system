@@ -14,6 +14,12 @@
     .staff-text { font-size: 11px; color: #e74c3c; margin-top: 4px; font-weight: 700; }
     .break-cell { background-color: #f1f5f9; color: #64748b; font-weight: bold; font-size: 11px; }
     .delete-btn { background:#e74c3c; color:white; border:none; padding:6px 15px; border-radius:4px; cursor:pointer; }
+    
+    /* ADDED: Highlight editable cells during edit mode */
+    .edit-mode .editable-cell {
+        background-color: #fff9db;
+        outline: 1px dashed #fab005;
+    }
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -82,7 +88,6 @@ firebase.auth().onAuthStateChanged(user => {
 </div>
 
 <script>
-// --- Custom Bottom Right Toast Notification (White) ---
 function showCustomToast(message){
     let toast = document.getElementById("customToast");
     if(!toast){
@@ -126,71 +131,47 @@ async function deleteSection(docId, section) {
     try {
         const docRef = db.collection("timetables").doc(docId);
         const docSnap = await docRef.get();
-        
         if (docSnap.exists) {
             let data = docSnap.data();
             delete data[section];
-            
-            if (Object.keys(data).length <= 1) { // 1 because of ownerId field
-                await docRef.delete(); 
-            } else { 
-                await docRef.set(data); 
-            }
-            
+            if (Object.keys(data).length <= 1) { await docRef.delete(); } 
+            else { await docRef.set(data); }
             loadTimetables();
             showCustomToast("Timetable deleted successfully");
         }
-    } catch(e) {
-        console.error("Error deleting section:", e);
-        showCustomToast("Error deleting timetable");
-    }
+    } catch(e) { showCustomToast("Error deleting timetable"); }
 }
 
-// UPDATED: Now filters by ownerId so users only see THEIR tables
 async function loadTimetables(){
     const user = firebase.auth().currentUser;
     if(!user) return;
-
     const container = document.getElementById("timetableContainer");
     container.innerHTML = "Loading...";
-    
     try {
         const [depSnap, subSnap, ttSnap] = await Promise.all([
             db.collection("departments").where("ownerId", "==", user.uid).get(),
             db.collection("subjects").where("ownerId", "==", user.uid).get(),
             db.collection("timetables").where("ownerId", "==", user.uid).get()
         ]);
-
-        let departments = [];
-        depSnap.forEach(doc => departments.push(doc.data()));
-
-        let allSubjects = [];
-        subSnap.forEach(doc => allSubjects.push(doc.data()));
-
+        let departments = []; depSnap.forEach(doc => departments.push(doc.data()));
+        let allSubjects = []; subSnap.forEach(doc => allSubjects.push(doc.data()));
         let found = false;
         container.innerHTML = "";
-
         ttSnap.forEach((doc) => {
             const key = doc.id;
             let timetableData = doc.data();
-            
             for(let sectionKey in timetableData){
-                if(sectionKey === "ownerId") continue; // Skip the ownerId field
-                
+                if(sectionKey === "ownerId") continue;
                 found = true;
                 const grid = timetableData[sectionKey];
-                
                 let deptName = "Unknown", secLetter = "", sem = "";
                 if(sectionKey.includes("_sem_")){
                     let parts = sectionKey.split("_sem_");
                     deptName = parts[0];
                     let subParts = parts[1].split("-");
-                    sem = subParts[0];
-                    secLetter = subParts[1] || "";
+                    sem = subParts[0]; secLetter = subParts[1] || "";
                 }
-
                 let dept = departments.find(d => normalize(d.name) === normalize(deptName)) || {};
-                
                 let startTime = dept.startTime || "09:30";
                 let periodMin = Number(dept.periodMinutes) || 50;
                 let lunchAfter = Number(dept.lunchAfter) || 3;
@@ -200,7 +181,6 @@ async function loadTimetables(){
                 let daysCount = Number(dept.days) || 5;
                 let periods = Number(dept.periods) || 6;
                 const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-
                 let tableHTML = `<div class="form-card">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px;">
                         <h2 style="margin:0;">${sectionKey}</h2>
@@ -214,7 +194,6 @@ async function loadTimetables(){
                     </div>
                     <table id="table-${sectionKey}">
                         <thead><tr><th>Day</th>`;
-
                 let currentTime = timeToMinutes(startTime);
                 for(let p = 1; p <= periods; p++){
                     let end = currentTime + periodMin;
@@ -232,7 +211,6 @@ async function loadTimetables(){
                     }
                 }
                 tableHTML += "</tr></thead><tbody>";
-
                 for(let i=0; i < daysCount; i++){
                     tableHTML += `<tr><td><b>${days[i]}</b></td>`;
                     let row = grid[i] || [];
@@ -242,8 +220,7 @@ async function loadTimetables(){
                         if(cellData) {
                             try {
                                 let parsed = JSON.parse(cellData);
-                                subj = parsed.subject;
-                                staffName = parsed.staff;
+                                subj = parsed.subject; staffName = parsed.staff;
                             } catch(e) {
                                 let parts = cellData.split("|");
                                 subj = parts[0] || ""; staffName = parts[1] || "";
@@ -254,7 +231,8 @@ async function loadTimetables(){
                             let matchedSub = allSubjects.find(s => normalize(s.name) === normalize(subj));
                             if(matchedSub && matchedSub.type) typeStr = matchedSub.type.toLowerCase() === "lab" ? "(L)" : "(T)";
                         }
-                        tableHTML += `<td>
+                        // Added 'editable-cell' class for identification
+                        tableHTML += `<td class="editable-cell">
                             <div class="subject-text">${subj ? subj.toUpperCase() + " " + typeStr : "-"}</div>
                             <div class="staff-text">${staffName || "-"}</div>
                         </td>`;
@@ -267,58 +245,74 @@ async function loadTimetables(){
                 container.innerHTML += tableHTML;
             }
         });
-
         if(!found) container.innerHTML = "<div class='form-card'>No timetables found.</div>";
-
-    } catch(error) {
-        console.error("Error loading timetables:", error);
-        container.innerHTML = "<div class='form-card'>Error loading timetables. Please check connection.</div>";
-    }
+    } catch(error) { container.innerHTML = "<div class='form-card'>Error loading.</div>"; }
 }
 
 function editTimetable(sec){
-    document.querySelectorAll(`#table-${sec} td`).forEach(td => td.contentEditable = true);
+    const tableContainer = document.querySelector(`#table-${sec}`).parentElement;
+    tableContainer.classList.add("edit-mode");
+    // Strictly only the subject/staff cells are editable
+    document.querySelectorAll(`#table-${sec} td.editable-cell`).forEach(td => {
+        td.contentEditable = true;
+    });
     document.getElementById(`controls-${sec}`).style.display = "inline";
 }
 
 function saveEdit(sec, docId){
-    document.querySelectorAll(`#table-${sec} td`).forEach(td => td.contentEditable = false);
+    const tableContainer = document.querySelector(`#table-${sec}`).parentElement;
+    tableContainer.classList.remove("edit-mode");
+    document.querySelectorAll(`#table-${sec} td.editable-cell`).forEach(td => {
+        td.contentEditable = false;
+    });
     document.getElementById(`controls-${sec}`).style.display = "none";
-    showCustomToast("Visual changes saved.");
+    showCustomToast("Visual changes saved on screen.");
 }
 
 async function downloadPDF(sec, deptName, semNum, secLetter){
     const inchargeInput = document.getElementById(`incharge-${sec}`);
     const inchargeName = inchargeInput ? inchargeInput.value.trim() : "";
     if(!inchargeName){
-        showCustomToast("Please enter Class Incharge name before downloading!");
+        showCustomToast("Please enter Class Incharge name first!");
         return;
     }
+    
     let n = parseInt(semNum, 10);
     let suffix = "th";
     if (n === 1) suffix = "st";
     else if (n === 2) suffix = "nd";
     else if (n === 3) suffix = "rd";
-    let titleText = `${deptName.toUpperCase()}-${secLetter.toUpperCase()} ${n}${suffix} Semester`;
-    const canvas = await html2canvas(document.querySelector(`#table-${sec}`));
+    let titleText = `${deptName.toUpperCase()} - ${secLetter.toUpperCase()} (${n}${suffix} Semester)`;
+
+    const tableElement = document.querySelector(`#table-${sec}`);
+    const canvas = await html2canvas(tableElement, { scale: 2 });
     const imgData = canvas.toDataURL("image/png");
-    const pdfWidth = 297; 
-    const imgWidth = 277; 
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    const pdfHeight = imgHeight + 40; 
+    
     const { jsPDF } = window.jspdf;
+    const pdfWidth = 297; // A4 Landscape
+    const margin = 10;
+    const imgWidth = pdfWidth - (margin * 2);
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    // Auto-calculating page height based on timetable height
+    const pdfHeight = imgHeight + 50; 
     const pdf = new jsPDF("l", "mm", [pdfWidth, pdfHeight]);
-    pdf.setFontSize(16);
+    
+    pdf.setFontSize(18);
     pdf.setFont("helvetica", "bold");
-    pdf.text(titleText, 10, 15);
+    pdf.text(titleText, margin, 15);
+    
     pdf.setFontSize(12);
     pdf.setFont("helvetica", "normal");
-    pdf.text(`Class Incharge: ${inchargeName}`, 10, 23);
-    pdf.addImage(imgData, 'PNG', 10, 30, imgWidth, imgHeight);
-    pdf.save(`${sec}.pdf`);
+    pdf.text(`Department: ${deptName.toUpperCase()}`, margin, 25);
+    pdf.text(`Section: ${secLetter.toUpperCase()}`, margin, 32);
+    pdf.text(`Class Incharge: ${inchargeName}`, margin, 39);
+    
+    pdf.addImage(imgData, 'PNG', margin, 45, imgWidth, imgHeight);
+    pdf.save(`${sec}_Timetable.pdf`);
+    showCustomToast("PDF Downloaded Successfully");
 }
 
-// Added PRO Badge Logic for this page
 var isPro = localStorage.getItem("isProUser") === "true";
 if(isPro){
     var logo = document.getElementById("logoText");
