@@ -279,16 +279,21 @@ async function loadTimetables(){
 }
 
 function editTimetable(sec){
-    // Force the check to be a String comparison to avoid errors
     if(String(localStorage.getItem("isProUser")) !== "true"){
         showCustomToast("Upgrade to PRO to unlock Edit and PDF features");
         return;
     }
+    // FIX: We must use getElementById because it handles spaces better than querySelector
     const card = document.getElementById(`card-${sec}`);
-    card.classList.add("edit-mode");
-    document.querySelectorAll(`#table-${sec} .editable-cell div`).forEach(div => {
-        div.contentEditable = true;
-    });
+    if(card) card.classList.add("edit-mode");
+    
+    const table = document.getElementById(`table-${sec}`);
+    if(table){
+        table.querySelectorAll(".editable-cell div").forEach(div => {
+            div.contentEditable = true;
+        });
+    }
+    
     document.getElementById(`edit-btn-${sec}`).style.display = "none";
     document.getElementById(`controls-${sec}`).style.display = "inline-block";
     showCustomToast("Edit mode active.");
@@ -306,7 +311,6 @@ function saveEdit(sec){
 }
 
 async function downloadPDF(sec, deptName, semNum, secLetter){
-    // Force the check to be a String comparison to avoid errors
     if(String(localStorage.getItem("isProUser")) !== "true"){
         showCustomToast("Upgrade to PRO to unlock Edit and PDF features");
         return;
@@ -325,8 +329,14 @@ async function downloadPDF(sec, deptName, semNum, secLetter){
     else if (n === 3) suffix = "rd";
     let titleText = `${deptName.toUpperCase()} - ${secLetter.toUpperCase()} (${n}${suffix} Semester)`;
 
-    const tableElement = document.querySelector(`#table-${sec}`);
+    // FIX: Use getElementById instead of querySelector
+    const tableElement = document.getElementById(`table-${sec}`);
     
+    if(!tableElement){
+        showCustomToast("Error: Table not found");
+        return;
+    }
+
     try {
         const canvas = await html2canvas(tableElement, { scale: 2, backgroundColor: "#ffffff" });
         const imgData = canvas.toDataURL("image/png");
@@ -355,6 +365,7 @@ async function downloadPDF(sec, deptName, semNum, secLetter){
         pdf.save(`${sec}_Timetable.pdf`);
         showCustomToast("PDF Downloaded Successfully");
     } catch (e) {
+        console.error(e);
         showCustomToast("Error generating PDF.");
     }
 }
