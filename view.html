@@ -43,23 +43,36 @@ const db = firebase.firestore();
 firebase.auth().onAuthStateChanged(user => {
     if(user){
         // 1. Wait for DOM to be ready before showing body
-        if(document.body) document.body.style.display = "block";
+        if(document.body) { 
+            document.body.style.display = "block"; 
+        } else {
+            document.addEventListener("DOMContentLoaded", () => document.body.style.display = "block");
+        }
 
         const proUsers = [ "hod@college.com", "gayathiridevi182005@gmail.com"];
         let email = user.email.trim().toLowerCase();
 
-        // Helper function: Grabs elements ONLY when needed to prevent 'null' bug
+        // ✅ BULLETPROOF UI FUNCTION: Waits for HTML to load to prevent 'null' bug
         function updateProUI(isProStatus) {
-            const logo = document.getElementById("logoText");
-            const badge = document.getElementById("proBadge");
-            if(logo && badge) {
-                if(isProStatus) {
-                    logo.classList.add("pro-user");
-                    badge.innerText = "PRO";
-                } else {
-                    logo.classList.remove("pro-user");
-                    badge.innerText = "";
+            const applyBadge = () => {
+                const logo = document.getElementById("logoText");
+                const badge = document.getElementById("proBadge");
+                if(logo && badge) {
+                    if(isProStatus) {
+                        logo.classList.add("pro-user");
+                        badge.innerText = "PRO";
+                    } else {
+                        logo.classList.remove("pro-user");
+                        badge.innerText = "";
+                    }
                 }
+            };
+
+            // If the HTML is still loading, wait. If it's done, do it immediately.
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", applyBadge);
+            } else {
+                applyBadge();
             }
         }
 
