@@ -15,10 +15,11 @@
     .break-cell { background-color: #f1f5f9; color: #64748b; font-weight: bold; font-size: 11px; }
     .delete-btn { background:#e74c3c; color:white; border:none; padding:6px 15px; border-radius:4px; cursor:pointer; }
     
-    /* ADDED: Highlight editable cells during edit mode */
-    .edit-mode .editable-cell {
+    /* Highlight editable cells during edit mode */
+    .edit-mode .editable-cell div {
         background-color: #fff9db;
         outline: 1px dashed #fab005;
+        cursor: text;
     }
 </style>
 
@@ -128,6 +129,7 @@ function minutesToTime(mins){
 }
 
 async function deleteSection(docId, section) {
+    if(!confirm("Are you sure you want to delete this timetable?")) return;
     try {
         const docRef = db.collection("timetables").doc(docId);
         const docSnap = await docRef.get();
@@ -181,13 +183,13 @@ async function loadTimetables(){
                 let daysCount = Number(dept.days) || 5;
                 let periods = Number(dept.periods) || 6;
                 const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-                let tableHTML = `<div class="form-card">
+                let tableHTML = `<div class="form-card" id="card-${sectionKey}">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px;">
                         <h2 style="margin:0;">${sectionKey}</h2>
                         <div style="display:flex; gap:8px; align-items:center;">
                             <input type="text" id="incharge-${sectionKey}" placeholder="Class Incharge Name" style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:13px; width:160px;">
                             <button onclick="editTimetable('${sectionKey}')" style="background:#3498db;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">Edit</button>
-                            <span id="controls-${sectionKey}" style="display:none"><button onclick="saveEdit('${sectionKey}', '${key}')" style="background:#27ae60;color:white;border:none;padding:6px 12px;border-radius:4px;">✔</button></span>
+                            <span id="controls-${sectionKey}" style="display:none"><button onclick="saveEdit('${sectionKey}')" style="background:#27ae60;color:white;border:none;padding:6px 12px;border-radius:4px;">✔</button></span>
                             <button onclick="downloadPDF('${sectionKey}', '${dept.name || deptName}', '${sem}', '${secLetter}')" style="background:#34495e;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">PDF</button>
                             <button class="delete-btn" onclick="deleteSection('${key}','${sectionKey}')">Delete</button>
                         </div>
@@ -231,7 +233,6 @@ async function loadTimetables(){
                             let matchedSub = allSubjects.find(s => normalize(s.name) === normalize(subj));
                             if(matchedSub && matchedSub.type) typeStr = matchedSub.type.toLowerCase() === "lab" ? "(L)" : "(T)";
                         }
-                        // Added 'editable-cell' class for identification
                         tableHTML += `<td class="editable-cell">
                             <div class="subject-text">${subj ? subj.toUpperCase() + " " + typeStr : "-"}</div>
                             <div class="staff-text">${staffName || "-"}</div>
@@ -250,23 +251,24 @@ async function loadTimetables(){
 }
 
 function editTimetable(sec){
-    const tableContainer = document.querySelector(`#table-${sec}`).parentElement;
-    tableContainer.classList.add("edit-mode");
-    // Strictly only the subject/staff cells are editable
-    document.querySelectorAll(`#table-${sec} td.editable-cell`).forEach(td => {
-        td.contentEditable = true;
+    const card = document.getElementById(`card-${sec}`);
+    card.classList.add("edit-mode");
+    // Only target the text divs inside the cells
+    document.querySelectorAll(`#table-${sec} .editable-cell div`).forEach(div => {
+        div.contentEditable = true;
     });
     document.getElementById(`controls-${sec}`).style.display = "inline";
+    showCustomToast("Edit mode active: Click on subjects or staff to change them.");
 }
 
-function saveEdit(sec, docId){
-    const tableContainer = document.querySelector(`#table-${sec}`).parentElement;
-    tableContainer.classList.remove("edit-mode");
-    document.querySelectorAll(`#table-${sec} td.editable-cell`).forEach(td => {
-        td.contentEditable = false;
+function saveEdit(sec){
+    const card = document.getElementById(`card-${sec}`);
+    card.classList.remove("edit-mode");
+    document.querySelectorAll(`#table-${sec} .editable-cell div`).forEach(div => {
+        div.contentEditable = false;
     });
     document.getElementById(`controls-${sec}`).style.display = "none";
-    showCustomToast("Visual changes saved on screen.");
+    showCustomToast("Changes saved on screen.");
 }
 
 async function downloadPDF(sec, deptName, semNum, secLetter){
@@ -285,38 +287,54 @@ async function downloadPDF(sec, deptName, semNum, secLetter){
     let titleText = `${deptName.toUpperCase()} - ${secLetter.toUpperCase()} (${n}${suffix} Semester)`;
 
     const tableElement = document.querySelector(`#table-${sec}`);
-    const canvas = await html2canvas(tableElement, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
     
-    const { jsPDF } = window.jspdf;
-    const pdfWidth = 297; // A4 Landscape
-    const margin = 10;
-    const imgWidth = pdfWidth - (margin * 2);
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    // Auto-calculating page height based on timetable height
-    const pdfHeight = imgHeight + 50; 
-    const pdf = new jsPDF("l", "mm", [pdfWidth, pdfHeight]);
-    
-    pdf.setFontSize(18);
-    pdf.setFont("helvetica", "bold");
-    pdf.text(titleText, margin, 15);
-    
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica", "normal");
-    pdf.text(`Department: ${deptName.toUpperCase()}`, margin, 25);
-    pdf.text(`Section: ${secLetter.toUpperCase()}`, margin, 32);
-    pdf.text(`Class Incharge: ${inchargeName}`, margin, 39);
-    
-    pdf.addImage(imgData, 'PNG', margin, 45, imgWidth, imgHeight);
-    pdf.save(`${sec}_Timetable.pdf`);
-    showCustomToast("PDF Downloaded Successfully");
+    try {
+        const canvas = await html2canvas(tableElement, { 
+            scale: 2,
+            backgroundColor: "#ffffff",
+            logging: false,
+            useCORS: true
+        });
+        
+        const imgData = canvas.toDataURL("image/png");
+        const { jsPDF } = window.jspdf;
+        
+        const pdfWidth = 297; // Landscape A4
+        const margin = 10;
+        const imgWidth = pdfWidth - (margin * 2);
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const pdfHeight = imgHeight + 60; // Extra room for headers
+        
+        const pdf = new jsPDF("l", "mm", [pdfWidth, pdfHeight]);
+        
+        // PDF Header
+        pdf.setFontSize(18);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(titleText, margin, 15);
+        
+        pdf.setFontSize(12);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`Department: ${deptName.toUpperCase()}`, margin, 25);
+        pdf.text(`Section: ${secLetter.toUpperCase()}`, margin, 32);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Class Incharge: ${inchargeName}`, margin, 42);
+        
+        // Add Image
+        pdf.addImage(imgData, 'PNG', margin, 50, imgWidth, imgHeight);
+        
+        pdf.save(`${sec}_Timetable.pdf`);
+        showCustomToast("PDF Downloaded Successfully");
+    } catch (e) {
+        console.error("PDF Error:", e);
+        showCustomToast("Error generating PDF. Try again.");
+    }
 }
 
-var isPro = localStorage.getItem("isProUser") === "true";
+// PRO Badge logic
+const isPro = localStorage.getItem("isProUser") === "true";
 if(isPro){
-    var logo = document.getElementById("logoText");
-    var badge = document.getElementById("proBadge");
+    const logo = document.getElementById("logoText");
+    const badge = document.getElementById("proBadge");
     if(logo && badge){
         logo.classList.add("pro-user");
         badge.innerText = "PRO";
