@@ -299,15 +299,56 @@ function editTimetable(sec){
     showCustomToast("Edit mode active.");
 }
 
-function saveEdit(sec){
+async function saveEdit(sec){
+    const user = firebase.auth().currentUser;
+    if(!user) return;
+
     const card = document.getElementById(`card-${sec}`);
     card.classList.remove("edit-mode");
-    document.querySelectorAll(`#table-${sec} .editable-cell div`).forEach(div => {
-        div.contentEditable = false;
+    
+    const table = document.getElementById(`table-${sec}`);
+    const rows = table.querySelectorAll("tbody tr");
+    let updatedGrid = [];
+
+    // 1. Loop through the table to collect the new edited text
+    rows.forEach(row => {
+        let rowData = [];
+        const cells = row.querySelectorAll(".editable-cell");
+        cells.forEach(cell => {
+            const subj = cell.querySelector(".subject-text").innerText.replace("(T)", "").replace("(L)", "").trim();
+            const staff = cell.querySelector(".staff-text").innerText.trim();
+            
+            // Re-format as JSON string to match your database structure
+            rowData.push(JSON.stringify({ subject: subj, staff: staff }));
+        });
+        updatedGrid.push(rowData);
     });
-    document.getElementById(`edit-btn-${sec}`).style.display = "inline-block";
-    document.getElementById(`controls-${sec}`).style.display = "none";
-    showCustomToast("Changes saved on screen.");
+
+    try {
+        // 2. Save the updated grid to Firebase
+        // The 'sec' variable is used as the field name in the 'timetables' collection
+        await db.collection("timetables").where("ownerId", "==", user.uid).get().then(querySnapshot => {
+            querySnapshot.forEach(async (doc) => {
+                if (doc.data()[sec]) {
+                    await db.collection("timetables").doc(doc.id).update({
+                        [sec]: updatedGrid
+                    });
+                }
+            });
+        });
+
+        // 3. Update UI
+        table.querySelectorAll(".editable-cell div").forEach(div => {
+            div.contentEditable = false;
+        });
+        document.getElementById(`edit-btn-${sec}`).style.display = "inline-block";
+        document.getElementById(`controls-${sec}`).style.display = "none";
+        
+        showCustomToast("Changes saved to Database!");
+    } catch (error) {
+        console.error("Error saving edits:", error);
+        showCustomToast("Error saving changes.");
+    }
 }
 
 async function downloadPDF(sec, deptName, semNum, secLetter){
