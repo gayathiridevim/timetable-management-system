@@ -27,13 +27,14 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-// ADDED: Initialize Firestore
 const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(function(user){
 
 if(user){
 document.body.style.display = "block";
+loadDepartments(); // Load only after user is verified
+renderSubjects();   // Load only after user is verified
 }
 else{
 window.location.replace("index.html");
@@ -253,18 +254,16 @@ toast.classList.remove("show");
 }
 
 
-/* UPDATED: LOAD DEPARTMENTS FROM FIRESTORE */
+/* UPDATED: FETCH ONLY CURRENT USER'S DEPARTMENTS */
 
 function loadDepartments(){
+const user = firebase.auth().currentUser;
+if(!user) return;
 
 const deptSelect = document.getElementById("subjectDept");
+deptSelect.innerHTML = `<option value="">Select Department</option>`;
 
-db.collection("departments").get().then((snap) => {
-    if(snap.empty){
-        showToast("Create Department First");
-        return;
-    }
-    
+db.collection("departments").where("ownerId", "==", user.uid).get().then((snap) => {
     snap.forEach(doc => {
         let dep = doc.data();
         deptSelect.innerHTML += `<option value="${dep.name}">${dep.name}</option>`;
@@ -275,9 +274,11 @@ db.collection("departments").get().then((snap) => {
 
 
 
-/* UPDATED: ADD SUBJECT TO FIRESTORE */
+/* UPDATED: ADD SUBJECT WITH ownerId */
 
 function addSubject(){
+const user = firebase.auth().currentUser;
+if(!user) return;
 
 const name = document.getElementById("subjectName").value.trim();
 const code = document.getElementById("subjectCode").value.trim();
@@ -286,47 +287,49 @@ const type = document.getElementById("subjectType").value;
 const dept = document.getElementById("subjectDept").value;
 const sem = document.getElementById("subjectSem").value;
 
-db.collection("departments").get().then((snap) => {
-    if(snap.empty){
-        showToast("Create Department First");
-        return;
-    }
+if(!name || !code || !credits || !type || !dept || !sem){
+    showToast("Please fill all details");
+    return;
+}
 
-    if(!name || !code || !credits || !type || !dept || !sem){
-        showToast("Please fill all details");
-        return;
-    }
+const newSubject = {
+    name, 
+    code, 
+    credits, 
+    type, 
+    dept, 
+    sem,
+    ownerId: user.uid // Tag data to the user
+};
 
-    const newSubject = {name, code, credits, type, dept, sem};
-
-    db.collection("subjects").add(newSubject).then(() => {
-        showToast("Subject Added Successfully");
-        
-        // Clear form fields
-        document.getElementById("subjectName").value = "";
-        document.getElementById("subjectCode").value = "";
-        document.getElementById("credits").value = "";
-        
-        renderSubjects();
-    }).catch(err => {
-        console.error("Error adding subject: ", err);
-        showToast("Error adding subject");
-    });
+db.collection("subjects").add(newSubject).then(() => {
+    showToast("Subject Added Successfully");
+    
+    document.getElementById("subjectName").value = "";
+    document.getElementById("subjectCode").value = "";
+    document.getElementById("credits").value = "";
+    
+    renderSubjects();
+}).catch(err => {
+    console.error("Error adding subject: ", err);
+    showToast("Error adding subject");
 });
 
 }
 
 
-/* UPDATED: READ SUBJECTS FROM FIRESTORE */
+/* UPDATED: READ ONLY CURRENT USER'S SUBJECTS */
 
 function renderSubjects(){
+const user = firebase.auth().currentUser;
+if(!user) return;
 
 const table = document.getElementById("subjectTable");
 table.innerHTML = "";
 
 let localBackup = [];
 
-db.collection("subjects").get().then((snap) => {
+db.collection("subjects").where("ownerId", "==", user.uid).get().then((snap) => {
     snap.forEach((doc) => {
         const sub = doc.data();
         const docId = doc.id;
@@ -350,14 +353,13 @@ db.collection("subjects").get().then((snap) => {
         `;
     });
     
-    // Safety backup
     localStorage.setItem("subjects", JSON.stringify(localBackup));
 }).catch(err => console.log("Error loading subjects", err));
 
 }
 
 
-/* UPDATED: DELETE SUBJECT FROM FIRESTORE */
+/* UPDATED: DELETE SUBJECT */
 
 function deleteSubject(docId){
 
@@ -370,21 +372,6 @@ db.collection("subjects").doc(docId).delete().then(() => {
 });
 
 }
-
-
-loadDepartments();
-renderSubjects();
-
-function showUpgradeToast(){
-showToast("Upgrade to Pro to unlock unlimited departments and sections");
-}
-
-
-if(localStorage.getItem("isProUser") === null){
-localStorage.setItem("isProUser","false");
-}
-</script>
-<script>
 
 var isPro = localStorage.getItem("isProUser");
 

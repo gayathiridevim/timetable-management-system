@@ -32,6 +32,7 @@ firebase.auth().onAuthStateChanged(function(user){
 
 if(user){
 document.body.style.display = "block";
+loadSectionCards(); // Load cards only after auth confirmed
 }
 else{
 window.location.replace("index.html");
@@ -194,15 +195,17 @@ setTimeout(()=>toast.classList.remove("show"),3000);
 }
 
 
-// UPDATED: Now fetches Departments and Sections directly from Firestore
+// UPDATED: Now filters Departments and Sections by ownerId
 async function loadSectionCards(){
+const user = firebase.auth().currentUser;
+if(!user) return;
 
 const container = document.getElementById("sectionContainer");
 container.innerHTML="";
 
 try {
-    // Fetch Departments
-    const depSnap = await db.collection("departments").get();
+    // Fetch ONLY current user's Departments
+    const depSnap = await db.collection("departments").where("ownerId", "==", user.uid).get();
     let departments = [];
     depSnap.forEach(doc => departments.push(doc.data()));
 
@@ -215,8 +218,8 @@ try {
         return;
     }
 
-    // Fetch Sections
-    const secSnap = await db.collection("sections").get();
+    // Fetch ONLY current user's Sections
+    const secSnap = await db.collection("sections").where("ownerId", "==", user.uid).get();
     let allSectionsMap = {};
     secSnap.forEach(doc => {
         allSectionsMap[doc.id] = doc.data().sectionsList; 
@@ -276,8 +279,10 @@ try {
 }
 
 
-// UPDATED: Now saves the generated sections directly to Firestore
+// UPDATED: Now saves the generated sections with the ownerId
 function generateSections(name,semester,count){
+    const user = firebase.auth().currentUser;
+    if(!user) return;
 
     const isPro = localStorage.getItem("isProUser") === "true";
 
@@ -295,13 +300,13 @@ function generateSections(name,semester,count){
 
     const key=name+"_sem_"+semester;
 
-    // Save to Firestore
+    // Save to Firestore with ownerId
     db.collection("sections").doc(key).set({
         department: name,
         semester: semester,
-        sectionsList: sectionsList
+        sectionsList: sectionsList,
+        ownerId: user.uid
     }).then(() => {
-        // Keep a local backup so older pages don't break during migration
         localStorage.setItem("sections_"+key, JSON.stringify(sectionsList));
         showToast("Sections generated");
         loadSectionCards();
@@ -310,9 +315,6 @@ function generateSections(name,semester,count){
         showToast("Error generating sections");
     });
 }
-
-
-loadSectionCards();
 
 
 if(localStorage.getItem("isProUser") === null){

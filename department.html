@@ -121,8 +121,11 @@
             setTimeout(() => { toast.classList.remove("show"); }, 3000);
         }
 
-        // UPDATED CASCADE DELETE FUNCTION
+        // UPDATED: Filters by ownerId to ensure user only deletes their own records
         window.deleteDepartment = async function(docId, deptToDelete) {
+            const user = firebase.auth().currentUser;
+            if(!user) return;
+            
             if(!confirm("Are you sure? This will delete the department and ALL related subjects, staff, sections, and timetables from the CLOUD!")) return;
             
             const deptLower = deptToDelete.trim().toLowerCase();
@@ -131,24 +134,24 @@
             try {
                 showToast("Cleaning up all linked records...");
 
-                // 1. Delete linked Subjects
-                const subjSnap = await db.collection("subjects").where("dept", "==", deptToDelete).get();
+                // 1. Delete linked Subjects for this user
+                const subjSnap = await db.collection("subjects").where("ownerId", "==", user.uid).where("dept", "==", deptToDelete).get();
                 subjSnap.forEach(doc => doc.ref.delete());
 
-                // 2. Delete linked Staff
-                const staffSnap = await db.collection("staff").where("dept", "==", deptToDelete).get();
+                // 2. Delete linked Staff for this user
+                const staffSnap = await db.collection("staff").where("ownerId", "==", user.uid).where("dept", "==", deptToDelete).get();
                 staffSnap.forEach(doc => doc.ref.delete());
 
-                // 3. Delete linked Timetables
-                const ttSnap = await db.collection("timetables").get();
+                // 3. Delete linked Timetables for this user
+                const ttSnap = await db.collection("timetables").where("ownerId", "==", user.uid).get();
                 ttSnap.forEach(doc => {
                     if(doc.id.toLowerCase().includes(deptLower) || doc.id.toLowerCase().includes(cleanKey.toLowerCase())){
                         doc.ref.delete();
                     }
                 });
 
-                // 4. Delete the Section lists
-                const secSnap = await db.collection("sections").get();
+                // 4. Delete the Section lists for this user
+                const secSnap = await db.collection("sections").where("ownerId", "==", user.uid).get();
                 secSnap.forEach(doc => {
                     if(doc.id.toLowerCase().includes(deptLower)){
                         doc.ref.delete();
@@ -158,7 +161,7 @@
                 // 5. Finally, delete the Department entry itself
                 await db.collection("departments").doc(docId).delete();
 
-                // 6. Clear local storage cleanup as well
+                // 6. Local storage cleanup
                 const dataKeys = ["subjects", "staff"];
                 dataKeys.forEach(key => {
                     let items = JSON.parse(localStorage.getItem(key)) || [];
@@ -177,12 +180,16 @@
             }
         };
 
+        // UPDATED: Now fetches only departments belonging to the logged-in user
         function renderTable() {
+            const user = firebase.auth().currentUser;
+            if(!user) return;
+
             const table = document.getElementById("deptTable");
             table.innerHTML = "";
             let localBackup = [];
             
-            db.collection("departments").get().then((querySnapshot) => {
+            db.collection("departments").where("ownerId", "==", user.uid).get().then((querySnapshot) => {
                 querySnapshot.forEach((doc) => {
                     const dep = doc.data();
                     const docId = doc.id;
@@ -207,7 +214,11 @@
             });
         }
 
+        // UPDATED: Now saves the ownerId (User UID) with the department data
         function addDepartment() {
+            const user = firebase.auth().currentUser;
+            if(!user) return;
+
             const name = document.getElementById("deptName").value.trim();
             const semester = document.getElementById("semester").value;
             const days = document.getElementById("days").value;
@@ -225,12 +236,24 @@
                 return;
             }
 
-            const department = { name, semester, days, periods, sections, startTime, periodMinutes, lunchAfter, lunchDuration, 
-                snackAfter: snackAfter ? Number(snackAfter) : null, snackDuration: snackDuration ? Number(snackDuration) : null };
+            const department = { 
+                name, 
+                semester, 
+                days, 
+                periods, 
+                sections, 
+                startTime, 
+                periodMinutes, 
+                lunchAfter, 
+                lunchDuration, 
+                snackAfter: snackAfter ? Number(snackAfter) : null, 
+                snackDuration: snackDuration ? Number(snackDuration) : null,
+                ownerId: user.uid // Link this department to the user
+            };
 
             const isPro = localStorage.getItem("isProUser") === "true";
             
-            db.collection("departments").get().then((snap) => {
+            db.collection("departments").where("ownerId", "==", user.uid).get().then((snap) => {
                 if (!isPro && snap.size >= 1) { 
                     showToast("Free plan allows only 1 department. Upgrade to Pro."); 
                     return; 

@@ -67,6 +67,9 @@ if(emailElement){
     emailElement.innerText = user.email;
 }
 
+// UPDATED: Pass the user object to the counter so it can filter by UID
+updateDashboardCounts(user);
+
 }
 else{
 window.location.replace("index.html");
@@ -193,40 +196,39 @@ window.location.replace("index.html");
 
 }
 
-// UPDATED: Now fetches counts directly from Firestore collections!
-function updateDashboardCounts() {
-    // Fetch Departments Count
-    db.collection("departments").get().then(snap => {
+// UPDATED: Now filters by ownerId so users only see THEIR counts!
+function updateDashboardCounts(user) {
+    if(!user) return;
+
+    // Fetch ONLY this user's Departments
+    db.collection("departments").where("ownerId", "==", user.uid).get().then(snap => {
         document.getElementById("deptCount").innerText = snap.size;
     }).catch(e => console.log("Error fetching departments:", e));
 
-    // Fetch Subjects Count
-    db.collection("subjects").get().then(snap => {
+    // Fetch ONLY this user's Subjects
+    db.collection("subjects").where("ownerId", "==", user.uid).get().then(snap => {
         document.getElementById("subjectCount").innerText = snap.size;
     }).catch(e => console.log("Error fetching subjects:", e));
 
-    // Fetch Staff Count
-    db.collection("staff").get().then(snap => {
+    // Fetch ONLY this user's Staff
+    db.collection("staff").where("ownerId", "==", user.uid).get().then(snap => {
         document.getElementById("staffCount").innerText = snap.size;
     }).catch(e => console.log("Error fetching staff:", e));
 
-    // Fetch Timetables Count
-    db.collection("timetables").get().then(snap => {
+    // Fetch ONLY this user's Timetables
+    db.collection("timetables").where("ownerId", "==", user.uid).get().then(snap => {
         let timetableCount = 0;
         snap.forEach(doc => {
             const data = doc.data();
-            timetableCount += Object.keys(data).length; // Count sections inside documents
+            // Count keys that aren't metadata (like ownerId)
+            const sections = Object.keys(data).filter(k => k !== "ownerId");
+            timetableCount += sections.length; 
         });
-        document.getElementById("timetableCount").innerText = timetableCount > 0 ? timetableCount : snap.size;
+        document.getElementById("timetableCount").innerText = timetableCount;
     }).catch(e => console.log("Error fetching timetables:", e));
 }
 
-/* RUN DASHBOARD */
-
-updateDashboardCounts();
-
 /* PRO CHECK */
-
 
 function activatePro(){
 localStorage.setItem("isProUser","true");

@@ -50,7 +50,7 @@ localStorage.setItem("isProUser","true");
 }
 
 document.getElementById("userEmail").innerText=user.email;
-
+loadStaff(); // Call loadStaff here to ensure user is logged in
 }
 else{
 window.location.replace("index.html");
@@ -158,11 +158,15 @@ function showCustomToast(message){
     setTimeout(()=>{ toast.style.display = "none"; }, 3000);
 }
 
+// UPDATED: Now filters staff members by ownerId
 function loadStaff(){
+    const user = firebase.auth().currentUser;
+    if(!user) return;
+
     const select = document.getElementById("staffSelect");
     select.innerHTML = `<option value="">Select Staff</option>`;
 
-    db.collection("staff").get().then((querySnapshot) => {
+    db.collection("staff").where("ownerId", "==", user.uid).get().then((querySnapshot) => {
         let staffNames = [];
         querySnapshot.forEach((doc) => {
             let staffData = doc.data();
@@ -188,7 +192,11 @@ function minutesToTime(mins){
     return h + ":" + m.toString().padStart(2,"0");
 }
 
+// UPDATED: Fetches only data belonging to the logged-in user
 async function loadStaffTimetable(){
+  const user = firebase.auth().currentUser;
+  if(!user) return;
+
   const selectedRaw = document.getElementById("staffSelect").value;
   const selected = (selectedRaw || "").trim().toLowerCase();
   const container = document.getElementById("staffContainer");
@@ -201,9 +209,9 @@ async function loadStaffTimetable(){
 
   try {
       const [staffSnap, deptSnap, ttSnap] = await Promise.all([
-          db.collection("staff").where("name", "==", selectedRaw).limit(1).get(),
-          db.collection("departments").get(),
-          db.collection("timetables").get()
+          db.collection("staff").where("ownerId", "==", user.uid).where("name", "==", selectedRaw).limit(1).get(),
+          db.collection("departments").where("ownerId", "==", user.uid).get(),
+          db.collection("timetables").where("ownerId", "==", user.uid).get()
       ]);
 
       let matchedStaff = staffSnap.empty ? null : staffSnap.docs[0].data();
@@ -230,6 +238,7 @@ async function loadStaffTimetable(){
       ttSnap.forEach((doc) => {
           let data = doc.data();
           for(let sectionKey in data){
+              if(sectionKey === "ownerId") continue; // Skip metadata
               let grid = data[sectionKey];
               for(let d=0; d < daysCount; d++){
                   let row = grid[d] || [];
@@ -239,7 +248,6 @@ async function loadStaffTimetable(){
                       try {
                           let parsed = typeof cell === "string" ? JSON.parse(cell) : cell;
                           if((parsed.staff || "").toLowerCase() === selected){
-                              // RESTORED: Read Department and Semester from sectionKey
                               let displayInfo = sectionKey.replace(/_/g, " ");
                               timetable[days[d]][p] = 
                                 `<div style="font-weight:bold;">${(parsed.subject || "").toUpperCase()}<br><span style="font-size:10px; color:blue;">(${displayInfo})</span></div>`;
@@ -315,7 +323,6 @@ async function downloadPDF(sec, staffName, deptName){
     pdf.save(`${staffName}_timetable.pdf`);
 }
 
-loadStaff();
 var isPro = localStorage.getItem("isProUser");
 if(isPro === "true"){
     var logo = document.getElementById("logoText");

@@ -34,6 +34,7 @@
                 }
                 const emailElement = document.getElementById("userEmail");
                 if(emailElement) emailElement.innerText = user.email;
+                loadDepartments(); // Load only after auth
             } else {
                 window.location.replace("index.html");
             }
@@ -87,7 +88,6 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function(){
-            loadDepartments();
             document.getElementById("departmentSelect").addEventListener("change", showDepartmentDetails);
             if(localStorage.getItem("isProUser") === "true"){
                 const logo = document.getElementById("logoText");
@@ -104,8 +104,12 @@
             setTimeout(()=>t.classList.remove("show"), 3000);
         }
 
+        // UPDATED: Now filters by ownerId
         function loadDepartments(){
-            db.collection("departments").get().then((snap) => {
+            const user = firebase.auth().currentUser;
+            if(!user) return;
+
+            db.collection("departments").where("ownerId", "==", user.uid).get().then((snap) => {
                 const select = document.getElementById("departmentSelect");
                 select.innerHTML = `<option value="">Select Department</option>`;
                 snap.forEach(doc => {
@@ -119,11 +123,15 @@
             });
         }
 
+        // UPDATED: Now filters by ownerId
         async function showDepartmentDetails(){
+            const user = firebase.auth().currentUser;
+            if(!user) return;
+
             const selected = document.getElementById("departmentSelect").value;
             const box = document.getElementById("summaryBox");
             if(!selected){ box.innerHTML = ""; return; }
-            const snap = await db.collection("departments").get();
+            const snap = await db.collection("departments").where("ownerId", "==", user.uid).get();
             let departments = [];
             snap.forEach(doc => departments.push(doc.data()));
             const dep = departments.find(d => (d.name + "_sem_" + d.semester) === selected);
@@ -135,7 +143,11 @@
             </div>`;
         }
 
+        // UPDATED: Uses ownerId for all logic and saves ownerId with the final table
         async function generateTimetable(){
+            const user = firebase.auth().currentUser;
+            if(!user) return;
+
             const selectedDept = document.getElementById("departmentSelect").value;
             const msgDiv = document.getElementById("successMsg");
             if(!selectedDept){ showToast("Select department"); return; }
@@ -144,12 +156,12 @@
             msgDiv.innerText = "Generating timetable, please wait...";
 
             try {
-                const [deptSnap, subjSnap, staffSnap, secSnap, ttSnap] = await Promise.all([
-                    db.collection("departments").get(),
-                    db.collection("subjects").get(),
-                    db.collection("staff").get(),
-                    db.collection("sections").get(),
-                    db.collection("timetables").get()
+                // Fetch ONLY current user's data
+                const [deptSnap, subjSnap, staffSnap, ttSnap] = await Promise.all([
+                    db.collection("departments").where("ownerId", "==", user.uid).get(),
+                    db.collection("subjects").where("ownerId", "==", user.uid).get(),
+                    db.collection("staff").where("ownerId", "==", user.uid).get(),
+                    db.collection("timetables").where("ownerId", "==", user.uid).get()
                 ]);
 
                 let departments = []; deptSnap.forEach(d => departments.push(d.data()));
@@ -182,8 +194,8 @@
                     if(doc.id !== `timetable_${cleanKey}`){
                         let data = doc.data();
                         for(let sK in data){
+                            if(sK === "ownerId") continue;
                             let gridObj = data[sK];
-                            // Reconstruct rows from object keys (0, 1, 2...)
                             for(let d=0; d<days; d++){
                                 let row = gridObj[d] || [];
                                 for(let p=0; p<row.length; p++){
@@ -202,7 +214,7 @@
                     }
                 });
 
-                let finalResult = {};
+                let finalResult = { ownerId: user.uid }; // ADD OWNER ID TO RESULT
 
                 for(let section of sections){
                     let queue = [];
@@ -233,7 +245,7 @@
                             let placed = false;
                             for(let slot of slots){
                                 let key = `${slot.d}-${slot.p}`;
-                                let busy = tempBusy[sName] && tempBusy[sName].includes(slotKey = key);
+                                let busy = tempBusy[sName] && tempBusy[sName].includes(key);
                                 let b2b = slot.p > 0 && (grid[slot.d][slot.p-1] || "").includes(sub.name);
                                 if(!busy && !b2b){
                                     grid[slot.d][slot.p] = JSON.stringify({subject: sub.name, staff: sName});
@@ -248,7 +260,6 @@
                     }
 
                     if(success) {
-                        // FIX: Convert 2D array to Object to avoid Firestore "Nested Array" error
                         let gridObj = {};
                         bestGrid.forEach((row, idx) => { gridObj[idx] = row; });
                         finalResult[`${selectedDept}-${section.name}`] = gridObj;
@@ -259,13 +270,13 @@
 
                 await db.collection("timetables").doc(`timetable_${cleanKey}`).set(finalResult);
                 msgDiv.style.color = "green";
-                msgDiv.innerText = "Timetable generated successfully with ZERO clashes!";
+                msgDiv.innerText = "Timetable generated successfully!";
                 showToast("Generated!");
 
             } catch (err) {
                 console.error(err);
                 msgDiv.style.color = "red";
-                msgDiv.innerText = "Error: Check console.";
+                msgDiv.innerText = "Error generating table.";
             }
         }
     </script>
