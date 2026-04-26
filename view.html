@@ -42,37 +42,41 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 firebase.auth().onAuthStateChanged(user => {
     if(user){
-        document.body.style.display = "block";
+        // 1. Wait for DOM to be ready before showing body
+        if(document.body) document.body.style.display = "block";
 
-        // 1. YOUR MANUAL LIST (Strictly No Changes)
         const proUsers = [ "hod@college.com", "gayathiridevi182005@gmail.com"];
-        const logo = document.getElementById("logoText");
-        const badge = document.getElementById("proBadge");
         let email = user.email.trim().toLowerCase();
+
+        // Helper function: Grabs elements ONLY when needed to prevent 'null' bug
+        function updateProUI(isProStatus) {
+            const logo = document.getElementById("logoText");
+            const badge = document.getElementById("proBadge");
+            if(logo && badge) {
+                if(isProStatus) {
+                    logo.classList.add("pro-user");
+                    badge.innerText = "PRO";
+                } else {
+                    logo.classList.remove("pro-user");
+                    badge.innerText = "";
+                }
+            }
+        }
 
         // 2. THE HYBRID AUTOMATIC CHECK
         if(proUsers.includes(email)){
             localStorage.setItem("isProUser","true");
-            if(logo && badge){
-                logo.classList.add("pro-user");
-                badge.innerText = "PRO";
-            }
+            updateProUI(true);
         } else {
-            // ✅ THIS PART MAKES IT AUTOMATIC AFTER PAYMENT
+            // AUTOMATIC CHECK
             db.collection("users").doc(user.uid).onSnapshot((doc) => {
                 if(doc.exists && doc.data().isPro === true){
                     localStorage.setItem("isProUser", "true");
-                    if(logo && badge){
-                        logo.classList.add("pro-user");
-                        badge.innerText = "PRO";
-                    }
+                    updateProUI(true); // Updates UI instantly
                 } else {
                     localStorage.setItem("isProUser", "false");
-                    localStorage.removeItem("proUsers"); // Keeps memory clean
-                    if(logo && badge){
-                        logo.classList.remove("pro-user");
-                        badge.innerText = "";
-                    }
+                    localStorage.removeItem("proUsers");
+                    updateProUI(false);
                 }
             });
         }
