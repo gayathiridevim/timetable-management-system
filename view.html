@@ -48,15 +48,27 @@ firebase.auth().onAuthStateChanged(user => {
         // 1. Pro List
         const proUsers = ["muralikumar19997@gmail.com", "hod@college.com", "gayathiridevi182005@gmail.com"];
 
-        // 2. Pro Check Logic
+        // 2. UI Elements for Badge
+        const logo = document.getElementById("logoText");
+        const badge = document.getElementById("proBadge");
+
+        // 3. Pro Check Logic + Immediate UI Update
         if(proUsers.includes(user.email)){
             localStorage.setItem("isProUser","true");
+            if(logo && badge){
+                logo.classList.add("pro-user");
+                badge.innerText = "PRO";
+            }
         } else {
             localStorage.setItem("isProUser","false");
             localStorage.removeItem("proUsers");
+            if(logo && badge){
+                logo.classList.remove("pro-user");
+                badge.innerText = "";
+            }
         }
 
-        // 3. Define the emailBox (This was missing!)
+        // 4. Set Email Display
         const emailBox = document.getElementById("userEmail");
         if(emailBox) {
             emailBox.innerText = user.email;
@@ -345,15 +357,6 @@ async function downloadPDF(sec, deptName, semNum, secLetter){
     }
 }
 
-const isPro = localStorage.getItem("isProUser") === "true";
-if(isPro){
-    const logo = document.getElementById("logoText");
-    const badge = document.getElementById("proBadge");
-    if(logo && badge){
-        logo.classList.add("pro-user");
-        badge.innerText = "PRO";
-    }
-}
 </script>
 </body>
 </html>
