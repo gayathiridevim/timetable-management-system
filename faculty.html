@@ -38,24 +38,38 @@ firebase.auth().onAuthStateChanged(function(user){
     if(user){
         document.body.style.display="block";
 
+        // 1. YOUR MANUAL LIST (No changes, nothing removed)
         const proUsers = [
             "staff@college.com",
             "hod@college.com",
             "gayathiridevi182005@gmail.com",
-            
         ];
 
-        // --- Added the else part here ---
-        if(proUsers.includes(user.email)){
+        let email = user.email.trim().toLowerCase();
+
+        // 2. THE HYBRID CHECK (Manual + Automatic Database)
+        if(proUsers.includes(email)){
             localStorage.setItem("isProUser","true");
         } else {
-            localStorage.setItem("isProUser","false");
-            localStorage.removeItem("proUsers");
+            // AUTOMATIC CHECK: Listen to Firestore for Razorpay payments
+            db.collection("users").doc(user.uid).onSnapshot((doc) => {
+                if(doc.exists && doc.data().isPro === true){
+                    localStorage.setItem("isProUser", "true");
+                    // Sync the UI badge
+                    const badge = document.getElementById("proBadge");
+                    if(badge) { 
+                        document.getElementById("logoText").classList.add("pro-user");
+                        badge.innerText = "PRO"; 
+                    }
+                } else {
+                    localStorage.setItem("isProUser", "false");
+                    localStorage.removeItem("proUsers");
+                }
+            });
         }
-        // --------------------------------
 
         document.getElementById("userEmail").innerText=user.email;
-        loadStaff(); // Call loadStaff here to ensure user is logged in
+        loadStaff(); 
     }
     else{
         window.location.replace("index.html");

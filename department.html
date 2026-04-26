@@ -21,20 +21,33 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-
-       firebase.auth().onAuthStateChanged(function(user){
+firebase.auth().onAuthStateChanged(function(user){
     if(user){
         document.body.style.display = "block";
-        const proUsers = [ "hod@college.com", "gayathiridevi182005@gmail.com"];
         
-        // --- Added the else part here ---
-        if(proUsers.includes(user.email)){ 
-            localStorage.setItem("isProUser","true"); 
+        // 1. YOUR MANUAL LIST (Faculty & Admin)
+        const proUsers = ["hod@college.com", "gayathiridevi182005@gmail.com"];
+        let email = user.email.trim().toLowerCase();
+
+        // 2. THE HYBRID CHECK (Manual List + Automatic Database)
+        if(proUsers.includes(email)){
+            localStorage.setItem("isProUser","true");
         } else {
-            localStorage.setItem("isProUser","false");
-            localStorage.removeItem("proUsers");
+            // AUTOMATIC DATABASE CHECK
+            db.collection("users").doc(user.uid).onSnapshot((doc) => {
+                if(doc.exists && doc.data().isPro === true){
+                    localStorage.setItem("isProUser", "true");
+                    // Update UI if on page
+                    const badge = document.getElementById("proBadge");
+                    if(badge) { 
+                        document.getElementById("logoText").classList.add("pro-user");
+                        badge.innerText = "PRO"; 
+                    }
+                } else {
+                    localStorage.setItem("isProUser", "false");
+                }
+            });
         }
-        // --------------------------------
         
         const emailElement = document.getElementById("userEmail");
         if(emailElement){ 

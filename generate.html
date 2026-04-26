@@ -28,20 +28,37 @@
         firebase.auth().onAuthStateChanged(function(user){
     if(user){
         document.body.style.display = "block";
-        const proUsers = ["hod@college.com", "gayathiridevi182005@gmail.com"];
         
-        // --- Added the else part here to handle demotion ---
-        if(proUsers.includes(user.email)){
+        // 1. YOUR MANUAL LIST (Strictly No Changes)
+        const proUsers = ["hod@college.com", "gayathiridevi182005@gmail.com"];
+        let email = user.email.trim().toLowerCase();
+
+        // 2. THE HYBRID CHECK (Manual List + Automatic Database)
+        if(proUsers.includes(email)){
             localStorage.setItem("isProUser","true");
         } else {
-            localStorage.setItem("isProUser","false");
-            localStorage.removeItem("proUsers");
+            // AUTOMATIC CHECK: Listen to Firestore for Razorpay payments
+            db.collection("users").doc(user.uid).onSnapshot((doc) => {
+                if(doc.exists && doc.data().isPro === true){
+                    localStorage.setItem("isProUser", "true");
+                    // Sync the UI badge
+                    const badge = document.getElementById("proBadge");
+                    if(badge) { 
+                        document.getElementById("logoText").classList.add("pro-user");
+                        badge.innerText = "PRO"; 
+                    }
+                } else {
+                    localStorage.setItem("isProUser", "false");
+                    localStorage.removeItem("proUsers");
+                }
+            });
         }
-        // -------------------------------------------------
         
         const emailElement = document.getElementById("userEmail");
         if(emailElement) emailElement.innerText = user.email;
-        loadDepartments(); // Load only after auth
+        
+        // 3. YOUR ORIGINAL FUNCTION (Nothing Removed)
+        loadDepartments(); 
     } else {
         window.location.replace("index.html");
     }

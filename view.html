@@ -40,35 +40,48 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-
 firebase.auth().onAuthStateChanged(user => {
     if(user){
         document.body.style.display = "block";
 
-        // 1. Pro List
+        // 1. YOUR MANUAL LIST (Strictly No Changes)
         const proUsers = [ "hod@college.com", "gayathiridevi182005@gmail.com"];
 
         // 2. UI Elements for Badge
         const logo = document.getElementById("logoText");
         const badge = document.getElementById("proBadge");
 
-        // 3. Pro Check Logic + Immediate UI Update
-        if(proUsers.includes(user.email)){
+        // 3. THE HYBRID CHECK (Manual List + Automatic Database)
+        let email = user.email.trim().toLowerCase();
+
+        if(proUsers.includes(email)){
+            // Logic for Manual List
             localStorage.setItem("isProUser","true");
             if(logo && badge){
                 logo.classList.add("pro-user");
                 badge.innerText = "PRO";
             }
         } else {
-            localStorage.setItem("isProUser","false");
-            localStorage.removeItem("proUsers");
-            if(logo && badge){
-                logo.classList.remove("pro-user");
-                badge.innerText = "";
-            }
+            // AUTOMATIC CHECK: Listen to Firestore for Razorpay payments
+            db.collection("users").doc(user.uid).onSnapshot((doc) => {
+                if(doc.exists && doc.data().isPro === true){
+                    localStorage.setItem("isProUser", "true");
+                    if(logo && badge){
+                        logo.classList.add("pro-user");
+                        badge.innerText = "PRO";
+                    }
+                } else {
+                    localStorage.setItem("isProUser", "false");
+                    localStorage.removeItem("proUsers");
+                    if(logo && badge){
+                        logo.classList.remove("pro-user");
+                        badge.innerText = "";
+                    }
+                }
+            });
         }
 
-        // 4. Set Email Display
+        // 4. Set Email Display (Nothing Removed)
         const emailBox = document.getElementById("userEmail");
         if(emailBox) {
             emailBox.innerText = user.email;

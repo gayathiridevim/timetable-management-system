@@ -186,37 +186,49 @@ VELS Faculty Scheduling System
 
 
 firebase.auth().onAuthStateChanged(function(user){
+    if(user){
+        document.body.style.display = "block";
 
-if(user){
+        // 1. YOUR MANUAL LIST (Strictly No Changes)
+        const proUsers = [
+            "staff@college.com",
+            "hod@college.com",
+            "gayathiridevi182005@gmail.com",
+        ];
 
-document.body.style.display = "block";
+        let email = user.email.trim().toLowerCase();
 
-const proUsers = [
-"staff@college.com",
-"hod@college.com",
-"gayathiridevi182005@gmail.com",
-
-];
-
-if(proUsers.includes(user.email)){
+        // 2. THE HYBRID CHECK (Manual List + Automatic Database)
+        if(proUsers.includes(email)){
             localStorage.setItem("isProUser","true");
         } else {
-            // ADD THESE TWO LINES STARTING AT LINE 185
-            localStorage.setItem("isProUser","false");
-            localStorage.removeItem("proUsers");
+            // AUTOMATIC CHECK: Listen to Firestore for Razorpay payments
+            db.collection("users").doc(user.uid).onSnapshot((doc) => {
+                if(doc.exists && doc.data().isPro === true){
+                    localStorage.setItem("isProUser", "true");
+                    // Sync the UI badge
+                    const logo = document.getElementById("logoText");
+                    const badge = document.getElementById("proBadge");
+                    if(logo && badge) { 
+                        logo.classList.add("pro-user");
+                        badge.innerText = "PRO"; 
+                    }
+                } else {
+                    localStorage.setItem("isProUser", "false");
+                    localStorage.removeItem("proUsers");
+                }
+            });
         }
 
-const emailElement = document.getElementById("userEmail");
+        // 3. YOUR ORIGINAL EMAIL DISPLAY (Nothing Removed)
+        const emailElement = document.getElementById("userEmail");
+        if(emailElement){
+            emailElement.innerText = user.email;
+        }
 
-if(emailElement){
-emailElement.innerText = user.email;
-}
-
-}
-else{
-window.location.replace("index.html");
-}
-
+    } else {
+        window.location.replace("index.html");
+    }
 });
 
 
