@@ -185,11 +185,11 @@ async function loadTimetables(){
                 const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
                 let tableHTML = `<div class="form-card" id="card-${sectionKey}">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px;">
-                        <h2 style="margin:0;">${sectionKey}</h2>
+                        <h2 style="margin:0;">${sectionKey.replace(/_/g, " ")}</h2>
                         <div style="display:flex; gap:8px; align-items:center;">
                             <input type="text" id="incharge-${sectionKey}" placeholder="Class Incharge Name" style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:13px; width:160px;">
-                            <button onclick="editTimetable('${sectionKey}')" style="background:#3498db;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">Edit</button>
-                            <span id="controls-${sectionKey}" style="display:none"><button onclick="saveEdit('${sectionKey}')" style="background:#27ae60;color:white;border:none;padding:6px 12px;border-radius:4px;">✔</button></span>
+                            <button onclick="editTimetable('${sectionKey}')" id="edit-btn-${sectionKey}" style="background:#3498db;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">Edit</button>
+                            <button onclick="saveEdit('${sectionKey}')" id="controls-${sectionKey}" style="display:none; background:#27ae60;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">✔</button>
                             <button onclick="downloadPDF('${sectionKey}', '${dept.name || deptName}', '${sem}', '${secLetter}')" style="background:#34495e;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">PDF</button>
                             <button class="delete-btn" onclick="deleteSection('${key}','${sectionKey}')">Delete</button>
                         </div>
@@ -221,7 +221,7 @@ async function loadTimetables(){
                         let subj = "", staffName = "";
                         if(cellData) {
                             try {
-                                let parsed = JSON.parse(cellData);
+                                let parsed = typeof cellData === "string" ? JSON.parse(cellData) : cellData;
                                 subj = parsed.subject; staffName = parsed.staff;
                             } catch(e) {
                                 let parts = cellData.split("|");
@@ -253,12 +253,12 @@ async function loadTimetables(){
 function editTimetable(sec){
     const card = document.getElementById(`card-${sec}`);
     card.classList.add("edit-mode");
-    // Only target the text divs inside the cells
     document.querySelectorAll(`#table-${sec} .editable-cell div`).forEach(div => {
         div.contentEditable = true;
     });
-    document.getElementById(`controls-${sec}`).style.display = "inline";
-    showCustomToast("Edit mode active: Click on subjects or staff to change them.");
+    document.getElementById(`edit-btn-${sec}`).style.display = "none";
+    document.getElementById(`controls-${sec}`).style.display = "inline-block";
+    showCustomToast("Edit mode active.");
 }
 
 function saveEdit(sec){
@@ -267,6 +267,7 @@ function saveEdit(sec){
     document.querySelectorAll(`#table-${sec} .editable-cell div`).forEach(div => {
         div.contentEditable = false;
     });
+    document.getElementById(`edit-btn-${sec}`).style.display = "inline-block";
     document.getElementById(`controls-${sec}`).style.display = "none";
     showCustomToast("Changes saved on screen.");
 }
@@ -289,25 +290,18 @@ async function downloadPDF(sec, deptName, semNum, secLetter){
     const tableElement = document.querySelector(`#table-${sec}`);
     
     try {
-        const canvas = await html2canvas(tableElement, { 
-            scale: 2,
-            backgroundColor: "#ffffff",
-            logging: false,
-            useCORS: true
-        });
-        
+        const canvas = await html2canvas(tableElement, { scale: 2, backgroundColor: "#ffffff" });
         const imgData = canvas.toDataURL("image/png");
         const { jsPDF } = window.jspdf;
         
-        const pdfWidth = 297; // Landscape A4
+        const pdfWidth = 297; 
         const margin = 10;
         const imgWidth = pdfWidth - (margin * 2);
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        const pdfHeight = imgHeight + 60; // Extra room for headers
+        const pdfHeight = imgHeight + 60; 
         
         const pdf = new jsPDF("l", "mm", [pdfWidth, pdfHeight]);
         
-        // PDF Header
         pdf.setFontSize(18);
         pdf.setFont("helvetica", "bold");
         pdf.text(titleText, margin, 15);
@@ -319,18 +313,14 @@ async function downloadPDF(sec, deptName, semNum, secLetter){
         pdf.setFont("helvetica", "bold");
         pdf.text(`Class Incharge: ${inchargeName}`, margin, 42);
         
-        // Add Image
         pdf.addImage(imgData, 'PNG', margin, 50, imgWidth, imgHeight);
-        
         pdf.save(`${sec}_Timetable.pdf`);
         showCustomToast("PDF Downloaded Successfully");
     } catch (e) {
-        console.error("PDF Error:", e);
-        showCustomToast("Error generating PDF. Try again.");
+        showCustomToast("Error generating PDF.");
     }
 }
 
-// PRO Badge logic
 const isPro = localStorage.getItem("isProUser") === "true";
 if(isPro){
     const logo = document.getElementById("logoText");
