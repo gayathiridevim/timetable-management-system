@@ -29,53 +29,63 @@ const db = firebase.firestore();
 
 
 firebase.auth().onAuthStateChanged(function(user){
+    if(user){
+        document.body.style.display = "block";
+        
+        // 1. YOUR MANUAL LIST (Faculty & Admin)
+        const ADMIN_EMAILS = [
+            "gayathridevi182005@gmail.com",
+            "monisha2812005@gamil.com",
+            "muralikumar19997@gmail.com"
+        ];
 
-if(user){
+        let userEmail = user.email.trim().toLowerCase();
 
-document.body.style.display = "block";
-const ADMIN_EMAILS = [
-  "gayathridevi182005@gmail.com",
-  "monisha2812005@gamil.com",
- 
-];
+        // 2. THE HYBRID CHECK
+        if(ADMIN_EMAILS.includes(userEmail)){
+            // If they are in the list, make them PRO instantly
+            localStorage.setItem("isProUser", "true");
+            updateProUI(true);
+        } else {
+            // 3. AUTOMATIC DATABASE CHECK (For Razorpay paid users)
+            db.collection("users").doc(user.uid).onSnapshot((doc) => {
+                if(doc.exists && doc.data().isPro === true){
+                    localStorage.setItem("isProUser", "true");
+                    updateProUI(true);
+                } else {
+                    localStorage.setItem("isProUser", "false");
+                    updateProUI(false);
+                }
+            });
+        }
 
-let email = user.email.trim().toLowerCase();
-
-// ✅ get stored pro users
-let proUsers = JSON.parse(localStorage.getItem("proUsers")) || [];
-
-// ✅ ADMIN ALWAYS PRO (Fixed small variable name typo here)
-if(ADMIN_EMAILS.includes(email)){
-  if(!proUsers.includes(email)){
-    proUsers.push(email);
-    localStorage.setItem("proUsers", JSON.stringify(proUsers));
-  }
-}
-
-// ✅ FINAL CHECK
-if(proUsers.includes(email)){
-  localStorage.setItem("isProUser","true");
-} else {
-    localStorage.setItem("isProUser", "false"); 
-    localStorage.removeItem("proUsers"); // This is the line that clears the "memory"
-}
-
-const emailElement = document.getElementById("userEmail");
-
-if(emailElement){
-    emailElement.style.visibility = "visible"; // ✅ Added this to make the email show up!
-    emailElement.innerText = user.email;
-}
-
-// UPDATED: Pass the user object to the counter so it can filter by UID
-updateDashboardCounts(user);
-
-}
-else{
-window.location.replace("index.html");
-}
-
+        // --- Keep your existing email and dashboard logic below ---
+        const emailElement = document.getElementById("userEmail");
+        if(emailElement){
+            emailElement.style.visibility = "visible"; 
+            emailElement.innerText = user.email;
+        }
+        updateDashboardCounts(user);
+    }
+    else {
+        window.location.replace("index.html");
+    }
 });
+
+// Small helper function to keep your code clean
+function updateProUI(isPro) {
+    const logo = document.getElementById("logoText");
+    const badge = document.getElementById("proBadge");
+    if(!logo || !badge) return;
+
+    if(isPro) {
+        logo.classList.add("pro-user");
+        badge.innerText = "PRO";
+    } else {
+        logo.classList.remove("pro-user");
+        badge.innerText = "";
+    }
+}
 
 </script>
 
