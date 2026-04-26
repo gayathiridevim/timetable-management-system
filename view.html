@@ -46,23 +46,19 @@ firebase.auth().onAuthStateChanged(user => {
 
         // 1. YOUR MANUAL LIST (Strictly No Changes)
         const proUsers = [ "hod@college.com", "gayathiridevi182005@gmail.com"];
-
-        // 2. UI Elements for Badge
         const logo = document.getElementById("logoText");
         const badge = document.getElementById("proBadge");
-
-        // 3. THE HYBRID CHECK (Manual List + Automatic Database)
         let email = user.email.trim().toLowerCase();
 
+        // 2. THE HYBRID AUTOMATIC CHECK
         if(proUsers.includes(email)){
-            // Logic for Manual List
             localStorage.setItem("isProUser","true");
             if(logo && badge){
                 logo.classList.add("pro-user");
                 badge.innerText = "PRO";
             }
         } else {
-            // AUTOMATIC CHECK: Listen to Firestore for Razorpay payments
+            // ✅ THIS PART MAKES IT AUTOMATIC AFTER PAYMENT
             db.collection("users").doc(user.uid).onSnapshot((doc) => {
                 if(doc.exists && doc.data().isPro === true){
                     localStorage.setItem("isProUser", "true");
@@ -72,7 +68,7 @@ firebase.auth().onAuthStateChanged(user => {
                     }
                 } else {
                     localStorage.setItem("isProUser", "false");
-                    localStorage.removeItem("proUsers");
+                    localStorage.removeItem("proUsers"); // Keeps memory clean
                     if(logo && badge){
                         logo.classList.remove("pro-user");
                         badge.innerText = "";
@@ -81,7 +77,7 @@ firebase.auth().onAuthStateChanged(user => {
             });
         }
 
-        // 4. Set Email Display (Nothing Removed)
+        // 3. Set Email Display & Load Data
         const emailBox = document.getElementById("userEmail");
         if(emailBox) {
             emailBox.innerText = user.email;
