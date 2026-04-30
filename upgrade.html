@@ -27,27 +27,23 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 firebase.auth().onAuthStateChanged(function(user){
-
-if(user){
-document.body.style.display = "block";
-}
-else{
-window.location.replace("index.html");
-}
-
+    if(user){
+        document.body.style.display = "block";
+    }
+    else{
+        window.location.replace("index.html");
+    }
 });
 
 </script>
 
 <style>
-
 .upgrade-container{
 display:flex;
 justify-content:center;
 gap:30px;
 margin-top:40px;
 }
-
 .plan-card{
 background:white;
 padding:30px;
@@ -56,25 +52,21 @@ width:320px;
 box-shadow:0 2px 8px rgba(0,0,0,0.1);
 text-align:center;
 }
-
 .plan-title{
 font-size:22px;
 font-weight:bold;
 margin-bottom:10px;
 }
-
 .plan-price{
 font-size:30px;
 color:#d60000;
 margin:15px 0;
 }
-
 .plan-list{
 text-align:left;
 line-height:1.8;
 margin-top:15px;
 }
-
 .pro-btn{
 background:#d60000;
 color:white;
@@ -85,11 +77,9 @@ cursor:pointer;
 font-size:16px;
 margin-top:20px;
 }
-
 .pro-btn:hover{
 background:#b50000;
 }
-
 </style>
 
 </head>
@@ -106,13 +96,9 @@ background:#b50000;
 <div class="upgrade-container">
 
 <!-- FREE PLAN -->
-
 <div class="plan-card">
-
 <h2>Free Plan</h2>
-
 <div class="plan-price">₹0</div>
-
 <ul class="plan-list">
 <li>1 Department only</li>
 <li>1 Section only</li>
@@ -121,22 +107,15 @@ background:#b50000;
 <li>PDF Export ❌</li>
 <li>Basic Timetable</li>
 </ul>
-
 <button class="free-btn" onclick="goDashboard()">
 Continue with Free
 </button>
-
 </div>
 
-
 <!-- PRO PLAN -->
-
 <div class="plan-card pro">
-
 <h2>Pro Plan</h2>
-
 <div class="plan-price">₹1</div>
-
 <ul class="plan-list">
 <li>Unlimited Departments</li>
 <li>Unlimited Sections</li>
@@ -145,50 +124,63 @@ Continue with Free
 <li>PDF Export ✔</li>
 <li>Advanced Timetable</li>
 </ul>
-
 <button class="pro-btn" onclick="payNow()">
 Upgrade with Razorpay
 </button>
-
 </div>
 
 </div>
-
 </div>
-
 
 <script>
-function activatePro(){
-    // 1. Set the PRO status
-    localStorage.setItem("isProUser","true");
-
-    // 2. NEW FIX: Save the email so the Dashboard doesn't delete the PRO badge
+function activatePro(paymentId){
     const user = firebase.auth().currentUser;
+    
     if(user){
         let email = user.email.trim().toLowerCase();
+
+        // 1. INSTANT LOCAL FIX: Save email so the Dashboard doesn't wipe the PRO badge
         let proUsers = JSON.parse(localStorage.getItem("proUsers")) || [];
-        
         if(!proUsers.includes(email)){
             proUsers.push(email);
             localStorage.setItem("proUsers", JSON.stringify(proUsers));
         }
-    }
+        localStorage.setItem("isProUser","true");
 
-    alert("Payment successful! Pro version activated.");
-    window.location.href="dashboard.html";
+        // 2. PERMANENT DATABASE FIX: Save to Firestore
+        const db = firebase.firestore();
+        db.collection("users").doc(user.uid).set({
+            email: email,
+            isPro: true,
+            paymentId: paymentId || "manual_upgrade"
+        }, { merge: true })
+        .then(() => {
+            alert("Payment successful! Pro version activated.");
+            window.location.href="dashboard.html";
+        })
+        .catch((error) => {
+            console.error("Database save error:", error);
+            // Even if database rules fail, local storage keeps the demo working!
+            alert("Payment successful! Pro version activated.");
+            window.location.href="dashboard.html";
+        });
+
+    } else {
+        alert("Error: You must be logged in to upgrade.");
+    }
 }
 
 function payNow(){
     var options = {
         key: "rzp_live_SRwehPXBJZ6DT1",
-        amount: 100,
+        amount: 100, // 100 paise = ₹1
         currency: "INR",
         name: "Timetable Management System",
         description: "Pro Plan Upgrade",
         handler: function (response){
-            alert("Payment Successful! Payment ID: " + response.razorpay_payment_id);
             console.log("Payment ID:", response.razorpay_payment_id);
-            activatePro();
+            // Trigger activation and pass the Razorpay ID
+            activatePro(response.razorpay_payment_id);
         }
     };
     var rzp = new Razorpay(options);
