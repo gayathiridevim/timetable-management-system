@@ -158,27 +158,24 @@ Upgrade with Razorpay
 
 
 <script>
-const db = firebase.firestore();
+function activatePro(){
+    // 1. Set the PRO status
+    localStorage.setItem("isProUser","true");
 
-function activatePro(paymentId){
+    // 2. NEW FIX: Save the email so the Dashboard doesn't delete the PRO badge
     const user = firebase.auth().currentUser;
-
-    if(user) {
-        db.collection("users").doc(user.uid).set({
-            isPro: true
-        }, { merge: true })
-        .then(() => {
-            localStorage.setItem("isProUser","true");
-            alert("Payment successful! Pro version activated. ID: " + paymentId);
-            window.location.href="dashboard.html";
-        })
-        .catch((error) => {
-            console.error("Database Error:", error);
-            alert("Payment received, but database update failed. Contact Admin.");
-        });
-    } else {
-        alert("Error: User not logged in.");
+    if(user){
+        let email = user.email.trim().toLowerCase();
+        let proUsers = JSON.parse(localStorage.getItem("proUsers")) || [];
+        
+        if(!proUsers.includes(email)){
+            proUsers.push(email);
+            localStorage.setItem("proUsers", JSON.stringify(proUsers));
+        }
     }
+
+    alert("Payment successful! Pro version activated.");
+    window.location.href="dashboard.html";
 }
 
 function payNow(){
@@ -189,11 +186,11 @@ function payNow(){
         name: "Timetable Management System",
         description: "Pro Plan Upgrade",
         handler: function (response){
+            alert("Payment Successful! Payment ID: " + response.razorpay_payment_id);
             console.log("Payment ID:", response.razorpay_payment_id);
-            activatePro(response.razorpay_payment_id);
+            activatePro();
         }
     };
-
     var rzp = new Razorpay(options);
     rzp.open();
 }
