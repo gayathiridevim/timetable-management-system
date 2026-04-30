@@ -26,7 +26,7 @@ firebase.auth().onAuthStateChanged(function(user){
         document.body.style.display = "block";
         
         // 1. YOUR MANUAL LIST (Faculty & Admin)
-        const proUsers = ["hod@college.com", "gayathiridevi182005@gmail.com"];
+        const proUsers = ["hod@college.com", ""];
         let email = user.email.trim().toLowerCase();
 
         // 2. THE HYBRID CHECK (Manual List + Automatic Database)
