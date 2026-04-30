@@ -12,6 +12,7 @@ display:none;
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 
@@ -157,52 +158,48 @@ Upgrade with Razorpay
 
 
 <script>
+const db = firebase.firestore();
 
-function activatePro(){
+function activatePro(paymentId){
+    const user = firebase.auth().currentUser;
 
-localStorage.setItem("isProUser","true");
-
-alert("Payment successful! Pro version activated.");
-
-window.location.href="dashboard.html";
-
+    if(user) {
+        db.collection("users").doc(user.uid).set({
+            isPro: true
+        }, { merge: true })
+        .then(() => {
+            localStorage.setItem("isProUser","true");
+            alert("Payment successful! Pro version activated. ID: " + paymentId);
+            window.location.href="dashboard.html";
+        })
+        .catch((error) => {
+            console.error("Database Error:", error);
+            alert("Payment received, but database update failed. Contact Admin.");
+        });
+    } else {
+        alert("Error: User not logged in.");
+    }
 }
-
 
 function payNow(){
+    var options = {
+        key: "rzp_live_SRwehPXBJZ6DT1",
+        amount: 500,
+        currency: "INR",
+        name: "Timetable Management System",
+        description: "Pro Plan Upgrade",
+        handler: function (response){
+            console.log("Payment ID:", response.razorpay_payment_id);
+            activatePro(response.razorpay_payment_id);
+        }
+    };
 
-var options = {
-
-key: "rzp_live_SRwehPXBJZ6DT1",
-
-amount: 500,
-
-currency: "INR",
-
-name: "Timetable Management System",
-
-description: "Pro Plan Upgrade",
-
-handler: function (response){
-
-alert("Payment Successful! Payment ID: " + response.razorpay_payment_id);
-
-console.log("Payment ID:", response.razorpay_payment_id);
-
-activatePro();
-
-}
-
-};
-
-var rzp = new Razorpay(options);
-
-rzp.open();
-
+    var rzp = new Razorpay(options);
+    rzp.open();
 }
 
 function goDashboard(){
-window.location.href="dashboard.html";
+    window.location.href="dashboard.html";
 }
 </script>
 
