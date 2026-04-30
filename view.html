@@ -15,7 +15,6 @@
     .break-cell { background-color: #f1f5f9; color: #64748b; font-weight: bold; font-size: 11px; }
     .delete-btn { background:#e74c3c; color:white; border:none; padding:6px 15px; border-radius:4px; cursor:pointer; }
     
-    /* Highlight editable cells during edit mode */
     .edit-mode .editable-cell div {
         background-color: #fff9db;
         outline: 1px dashed #fab005;
@@ -40,61 +39,16 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
 firebase.auth().onAuthStateChanged(user => {
     if(user){
-        // 1. Wait for DOM to be ready before showing body
         if(document.body) { 
             document.body.style.display = "block"; 
-        } else {
-            document.addEventListener("DOMContentLoaded", () => document.body.style.display = "block");
         }
+        
+        // Force Pro status to true so all features stay unlocked
+        localStorage.setItem("isProUser","true");
 
-        const proUsers = [ "hod@college.com", "gayathridevi182005@gmail.com"];
-        let email = user.email.trim().toLowerCase();
-
-        // ✅ BULLETPROOF UI FUNCTION: Waits for HTML to load to prevent 'null' bug
-        function updateProUI(isProStatus) {
-            const applyBadge = () => {
-                const logo = document.getElementById("logoText");
-                const badge = document.getElementById("proBadge");
-                if(logo && badge) {
-                    if(isProStatus) {
-                        logo.classList.add("pro-user");
-                        badge.innerText = "PRO";
-                    } else {
-                        logo.classList.remove("pro-user");
-                        badge.innerText = "";
-                    }
-                }
-            };
-
-            // If the HTML is still loading, wait. If it's done, do it immediately.
-            if (document.readyState === "loading") {
-                document.addEventListener("DOMContentLoaded", applyBadge);
-            } else {
-                applyBadge();
-            }
-        }
-
-        // 2. THE HYBRID AUTOMATIC CHECK
-        if(proUsers.includes(email)){
-            localStorage.setItem("isProUser","true");
-            updateProUI(true);
-        } else {
-            // AUTOMATIC CHECK
-            db.collection("users").doc(user.uid).onSnapshot((doc) => {
-                if(doc.exists && doc.data().isPro === true){
-                    localStorage.setItem("isProUser", "true");
-                    updateProUI(true); // Updates UI instantly
-                } else {
-                    localStorage.setItem("isProUser", "false");
-                    localStorage.removeItem("proUsers");
-                    updateProUI(false);
-                }
-            });
-        }
-
-        // 3. Set Email Display & Load Data
         const emailBox = document.getElementById("userEmail");
         if(emailBox) {
             emailBox.innerText = user.email;
@@ -112,7 +66,7 @@ firebase.auth().onAuthStateChanged(user => {
 <div class="layout">
     <div class="sidebar">
         <div class="sidebar-header">
-            <h1 id="logoText">VELS <span id="proBadge"></span></h1>
+            <h1 id="logoText">VELS</h1>
             <p>Timetable Management System</p>
         </div>
         <ul>
@@ -305,11 +259,6 @@ async function loadTimetables(){
 }
 
 function editTimetable(sec){
-    if(String(localStorage.getItem("isProUser")) !== "true"){
-        showCustomToast("Upgrade to PRO to unlock Edit and PDF features");
-        return;
-    }
-    // FIX: We must use getElementById because it handles spaces better than querySelector
     const card = document.getElementById(`card-${sec}`);
     if(card) card.classList.add("edit-mode");
     
@@ -336,23 +285,18 @@ async function saveEdit(sec){
     const rows = table.querySelectorAll("tbody tr");
     let updatedGrid = [];
 
-    // 1. Loop through the table to collect the new edited text
     rows.forEach(row => {
         let rowData = [];
         const cells = row.querySelectorAll(".editable-cell");
         cells.forEach(cell => {
             const subj = cell.querySelector(".subject-text").innerText.replace("(T)", "").replace("(L)", "").trim();
             const staff = cell.querySelector(".staff-text").innerText.trim();
-            
-            // Re-format as JSON string to match your database structure
             rowData.push(JSON.stringify({ subject: subj, staff: staff }));
         });
         updatedGrid.push(rowData);
     });
 
     try {
-        // 2. Save the updated grid to Firebase
-        // The 'sec' variable is used as the field name in the 'timetables' collection
         await db.collection("timetables").where("ownerId", "==", user.uid).get().then(querySnapshot => {
             querySnapshot.forEach(async (doc) => {
                 if (doc.data()[sec]) {
@@ -363,7 +307,6 @@ async function saveEdit(sec){
             });
         });
 
-        // 3. Update UI
         table.querySelectorAll(".editable-cell div").forEach(div => {
             div.contentEditable = false;
         });
@@ -372,16 +315,11 @@ async function saveEdit(sec){
         
         showCustomToast("Changes saved to Database!");
     } catch (error) {
-        console.error("Error saving edits:", error);
         showCustomToast("Error saving changes.");
     }
 }
 
 async function downloadPDF(sec, deptName, semNum, secLetter){
-    if(String(localStorage.getItem("isProUser")) !== "true"){
-        showCustomToast("Upgrade to PRO to unlock Edit and PDF features");
-        return;
-    }
     const inchargeInput = document.getElementById(`incharge-${sec}`);
     const inchargeName = inchargeInput ? inchargeInput.value.trim() : "";
     if(!inchargeName){
@@ -396,7 +334,6 @@ async function downloadPDF(sec, deptName, semNum, secLetter){
     else if (n === 3) suffix = "rd";
     let titleText = `${deptName.toUpperCase()} - ${secLetter.toUpperCase()} (${n}${suffix} Semester)`;
 
-    // FIX: Use getElementById instead of querySelector
     const tableElement = document.getElementById(`table-${sec}`);
     
     if(!tableElement){
@@ -432,11 +369,9 @@ async function downloadPDF(sec, deptName, semNum, secLetter){
         pdf.save(`${sec}_Timetable.pdf`);
         showCustomToast("PDF Downloaded Successfully");
     } catch (e) {
-        console.error(e);
         showCustomToast("Error generating PDF.");
     }
 }
-
 </script>
 </body>
 </html>

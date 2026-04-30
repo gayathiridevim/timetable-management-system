@@ -28,27 +28,31 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(function(user){
+    if(user){
+        document.body.style.display = "block";
+        
+        // Ensure all Pro features are unlocked locally
+        localStorage.setItem("isProUser", "true");
 
-if(user){
-document.body.style.display = "block";
-loadDepartments(); // Ensure departments load for the logged-in user
-renderStaff();     // Ensure staff table loads for the logged-in user
-}
-else{
-window.location.replace("index.html");
-}
-
+        const emailElement = document.getElementById("userEmail");
+        if(emailElement){
+            emailElement.innerText = user.email;
+        }
+        
+        loadDepartments(); 
+        renderStaff();     
+    }
+    else{
+        window.location.replace("index.html");
+    }
 });
 
 </script>
 
 <style>
-
-
 #userEmail{
 word-break: break-all;
 }
-
 </style>
 
 </head>
@@ -57,11 +61,10 @@ word-break: break-all;
 
 <div class="layout">
 
-
 <div class="sidebar">
 
 <div class="sidebar-header">
-<h1 id="logoText">VELS <span id="proBadge"></span></h1>
+<h1 id="logoText">VELS</h1>
 <p>Timetable Management System</p>
 </div>
 
@@ -73,20 +76,16 @@ word-break: break-all;
 <li><a href="section.html">Section Management</a></li>
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
-
 <li><a href="faculty.html">Staff Timetable</a></li>
 <li><a href="guidelines.html">System Guidelines</a></li>
 </ul>
 
 <div class="logout-section">
-
 <div class="signed-in">
 <small>Signed in as</small>
 <p id="userEmail"></p>
 </div>
-
 <div class="logout-link" onclick="logout()">⬅ Logout</div>
-
 </div>
 
 </div>
@@ -95,12 +94,9 @@ word-break: break-all;
 <div class="content-area">
 
 <div class="top-navbar">
-
 <span class="system-title">
 VELS Faculty Scheduling System
 </span>
-
-
 </div>
 
 <div class="dashboard-header">
@@ -110,11 +106,8 @@ VELS Faculty Scheduling System
 
 
 <div class="form-card">
-
 <h3>Add Staff Member</h3>
-
 <div class="form-grid">
-
 <div>
 <label>Staff Name</label>
 <input type="text" id="staffName" placeholder="e.g. Hema">
@@ -149,15 +142,12 @@ VELS Faculty Scheduling System
 <div class="add-btn-box">
 <button type="button" onclick="addStaff()">+ Add Subject</button>
 </div>
-
 </div>
 </div>
 
 
 <div class="table-card">
-
 <table>
-
 <thead>
 <tr>
 <th>Name</th>
@@ -168,11 +158,8 @@ VELS Faculty Scheduling System
 <th>Actions</th>
 </tr>
 </thead>
-
 <tbody id="staffTable"></tbody>
-
 </table>
-
 </div>
 
 </div>
@@ -183,272 +170,162 @@ VELS Faculty Scheduling System
 
 <script>
 
-
-
-firebase.auth().onAuthStateChanged(function(user){
-    if(user){
-        document.body.style.display = "block";
-
-        // 1. YOUR MANUAL LIST (Strictly No Changes)
-        const proUsers = [
-            "staff@college.com",
-            "hod@college.com",
-            "gayathridevi182005@gmail.com",
-        ];
-
-        let email = user.email.trim().toLowerCase();
-
-        // 2. THE HYBRID CHECK (Manual List + Automatic Database)
-        if(proUsers.includes(email)){
-            localStorage.setItem("isProUser","true");
-        } else {
-            // AUTOMATIC CHECK: Listen to Firestore for Razorpay payments
-            db.collection("users").doc(user.uid).onSnapshot((doc) => {
-                if(doc.exists && doc.data().isPro === true){
-                    localStorage.setItem("isProUser", "true");
-                    // Sync the UI badge
-                    const logo = document.getElementById("logoText");
-                    const badge = document.getElementById("proBadge");
-                    if(logo && badge) { 
-                        logo.classList.add("pro-user");
-                        badge.innerText = "PRO"; 
-                    }
-                } else {
-                    localStorage.setItem("isProUser", "false");
-                    localStorage.removeItem("proUsers");
-                }
-            });
-        }
-
-        // 3. YOUR ORIGINAL EMAIL DISPLAY (Nothing Removed)
-        const emailElement = document.getElementById("userEmail");
-        if(emailElement){
-            emailElement.innerText = user.email;
-        }
-
-    } else {
-        window.location.replace("index.html");
-    }
-});
-
-
 function logout(){
-
-firebase.auth().signOut().then(()=>{
-window.location.replace("index.html");
-});
-
+    firebase.auth().signOut().then(()=>{
+        window.location.replace("index.html");
+    });
 }
-
-
-if(localStorage.getItem("isProUser") === null){
-localStorage.setItem("isProUser","false");
-}
-
 
 function showToast(message){
-
-const toast=document.getElementById("toast");
-
-toast.innerText=message;
-
-toast.classList.add("show");
-
-setTimeout(()=>toast.classList.remove("show"),3000);
-
+    const toast=document.getElementById("toast");
+    toast.innerText=message;
+    toast.classList.add("show");
+    setTimeout(()=>toast.classList.remove("show"),3000);
 }
-
 
 function checkDeptFirst(event){
-const dept = document.getElementById("staffDept").value;
-if(!dept){
-    event.preventDefault(); 
-    document.activeElement.blur();
-    showToast("Please select a Department first");
-}
+    const dept = document.getElementById("staffDept").value;
+    if(!dept){
+        event.preventDefault(); 
+        document.activeElement.blur();
+        showToast("Please select a Department first");
+    }
 }
 
-
-// UPDATED: Now filters departments by ownerId
 function loadDepartments(){
-const user = firebase.auth().currentUser;
-if(!user) return;
+    const user = firebase.auth().currentUser;
+    if(!user) return;
 
-const deptSelect=document.getElementById("staffDept");
-deptSelect.innerHTML=`<option value="">Select Department</option>`;
+    const deptSelect=document.getElementById("staffDept");
+    deptSelect.innerHTML=`<option value="">Select Department</option>`;
 
-db.collection("departments").where("ownerId", "==", user.uid).get().then((snap) => {
-    snap.forEach(doc => {
-        let dep = doc.data();
-        deptSelect.innerHTML+=`<option value="${dep.name}">${dep.name}</option>`;
-    });
-}).catch(err => console.log("Error loading departments", err));
-
-}
-
-
-
-// UPDATED: Now filters subjects by ownerId and dept
-function loadSubjects(){
-const user = firebase.auth().currentUser;
-if(!user) return;
-
-const subjectSelect=document.getElementById("staffSubject");
-const dept = document.getElementById("staffDept").value;
-
-subjectSelect.innerHTML=`<option value="">Select Subject</option>`;
-
-if(dept){
-    db.collection("subjects").where("ownerId", "==", user.uid).where("dept", "==", dept).get().then((snap) => {
-        snap.forEach(doc => {
-            let sub = doc.data();
-            subjectSelect.innerHTML+=`<option value="${sub.name}">${sub.name}</option>`;
-        });
-    }).catch(err => console.log("Error loading subjects", err));
-}
-
-}
-
-
-// UPDATED: Now filters section calculation by ownerId
-function loadSections(){
-const user = firebase.auth().currentUser;
-if(!user) return;
-
-const dept = document.getElementById("staffDept").value;
-const sectionSelect = document.getElementById("staffSection");
-
-sectionSelect.innerHTML = `<option value="">Select Section</option>`;
-
-if(dept){
-    db.collection("departments").where("ownerId", "==", user.uid).where("name", "==", dept).get().then((snap) => {
+    db.collection("departments").where("ownerId", "==", user.uid).get().then((snap) => {
         snap.forEach(doc => {
             let dep = doc.data();
-            let totalSections = Number(dep.sections);
-
-            for(let i=0;i<totalSections;i++){
-                let sectionLetter = String.fromCharCode(65 + i);
-                sectionSelect.innerHTML += `<option value="${sectionLetter}">${sectionLetter}</option>`;
-            }
+            deptSelect.innerHTML+=`<option value="${dep.name}">${dep.name}</option>`;
         });
-    }).catch(err => console.log("Error loading sections", err));
+    }).catch(err => console.log("Error loading departments", err));
 }
 
+function loadSubjects(){
+    const user = firebase.auth().currentUser;
+    if(!user) return;
+
+    const subjectSelect=document.getElementById("staffSubject");
+    const dept = document.getElementById("staffDept").value;
+
+    subjectSelect.innerHTML=`<option value="">Select Subject</option>`;
+
+    if(dept){
+        db.collection("subjects").where("ownerId", "==", user.uid).where("dept", "==", dept).get().then((snap) => {
+            snap.forEach(doc => {
+                let sub = doc.data();
+                subjectSelect.innerHTML+=`<option value="${sub.name}">${sub.name}</option>`;
+            });
+        }).catch(err => console.log("Error loading subjects", err));
+    }
 }
 
+function loadSections(){
+    const user = firebase.auth().currentUser;
+    if(!user) return;
 
+    const dept = document.getElementById("staffDept").value;
+    const sectionSelect = document.getElementById("staffSection");
 
-// UPDATED: Now saves with ownerId
+    sectionSelect.innerHTML = `<option value="">Select Section</option>`;
+
+    if(dept){
+        db.collection("departments").where("ownerId", "==", user.uid).where("name", "==", dept).get().then((snap) => {
+            snap.forEach(doc => {
+                let dep = doc.data();
+                let totalSections = Number(dep.sections);
+
+                for(let i=0;i<totalSections;i++){
+                    let sectionLetter = String.fromCharCode(65 + i);
+                    sectionSelect.innerHTML += `<option value="${sectionLetter}">${sectionLetter}</option>`;
+                }
+            });
+        }).catch(err => console.log("Error loading sections", err));
+    }
+}
+
 function addStaff(){
-const user = firebase.auth().currentUser;
-if(!user) return;
+    const user = firebase.auth().currentUser;
+    if(!user) return;
 
-const name=document.getElementById("staffName").value.trim();
-const dept=document.getElementById("staffDept").value;
-const section=document.getElementById("staffSection").value;
-const subject=document.getElementById("staffSubject").value;
-const maxLoad=Number(document.getElementById("maxLoad").value);
+    const name=document.getElementById("staffName").value.trim();
+    const dept=document.getElementById("staffDept").value;
+    const section=document.getElementById("staffSection").value;
+    const subject=document.getElementById("staffSubject").value;
+    const maxLoad=Number(document.getElementById("maxLoad").value);
 
-if(!name||!dept||!section||!subject){
-showToast("Please fill all details");
-return;
-}
+    if(!name||!dept||!section||!subject){
+        showToast("Please fill all details");
+        return;
+    }
 
-const newStaff = {
-    name: name,
-    dept: dept,
-    section: section,
-    subject: subject,
-    maxLoad: maxLoad,
-    ownerId: user.uid // Link data to logged in user
-};
+    const newStaff = {
+        name: name,
+        dept: dept,
+        section: section,
+        subject: subject,
+        maxLoad: maxLoad,
+        ownerId: user.uid 
+    };
 
-db.collection("staff").add(newStaff).then(() => {
-    renderStaff();
-    showToast("Staff Added Successfully");
-    document.getElementById("staffName").value="";
-    document.getElementById("maxLoad").value=1; 
-}).catch((error) => {
-    console.error("Error adding staff: ", error);
-    showToast("Error adding staff");
-});
-
-}
-
-
-
-// UPDATED: Now filters staff list by ownerId
-function renderStaff(){
-const user = firebase.auth().currentUser;
-if(!user) return;
-
-const table=document.getElementById("staffTable");
-table.innerHTML="";
-
-let localBackup = [];
-
-db.collection("staff").where("ownerId", "==", user.uid).get().then((snap) => {
-    snap.forEach((doc) => {
-        const staff = doc.data();
-        const docId = doc.id;
-        
-        localBackup.push(staff);
-
-        table.innerHTML+=`
-        <tr>
-            <td>${staff.name}</td>
-            <td>${staff.subject}</td>
-            <td>${staff.dept}</td>
-            <td>${staff.section}</td>
-            <td>${staff.maxLoad}</td>
-            <td>
-                <button class="delete-icon-btn" onclick="deleteStaff('${docId}')">Delete</button>
-            </td>
-        </tr>
-        `;
+    db.collection("staff").add(newStaff).then(() => {
+        renderStaff();
+        showToast("Staff Added Successfully");
+        document.getElementById("staffName").value="";
+        document.getElementById("maxLoad").value=1; 
+    }).catch((error) => {
+        console.error("Error adding staff: ", error);
+        showToast("Error adding staff");
     });
-    
-    localStorage.setItem("staff", JSON.stringify(localBackup));
-
-}).catch((error) => console.error("Error reading staff:", error));
-
 }
 
+function renderStaff(){
+    const user = firebase.auth().currentUser;
+    if(!user) return;
 
+    const table=document.getElementById("staffTable");
+    table.innerHTML="";
+
+    let localBackup = [];
+
+    db.collection("staff").where("ownerId", "==", user.uid).get().then((snap) => {
+        snap.forEach((doc) => {
+            const staff = doc.data();
+            const docId = doc.id;
+            localBackup.push(staff);
+
+            table.innerHTML+=`
+            <tr>
+                <td>${staff.name}</td>
+                <td>${staff.subject}</td>
+                <td>${staff.dept}</td>
+                <td>${staff.section}</td>
+                <td>${staff.maxLoad}</td>
+                <td>
+                    <button class="delete-icon-btn" onclick="deleteStaff('${docId}')">Delete</button>
+                </td>
+            </tr>
+            `;
+        });
+        localStorage.setItem("staff", JSON.stringify(localBackup));
+    }).catch((error) => console.error("Error reading staff:", error));
+}
 
 function deleteStaff(docId){
-
-db.collection("staff").doc(docId).delete().then(() => {
-    renderStaff();
-    showToast("Staff Deleted Successfully");
-}).catch((error) => {
-    console.error("Error removing staff: ", error);
-    showToast("Error deleting staff");
-});
-
+    db.collection("staff").doc(docId).delete().then(() => {
+        renderStaff();
+        showToast("Staff Deleted Successfully");
+    }).catch((error) => {
+        console.error("Error removing staff: ", error);
+        showToast("Error deleting staff");
+    });
 }
-
-
-if(localStorage.getItem("isProUser") === null){
-localStorage.setItem("isProUser","false");
-}
-</script>
-<script>
-
-var isPro = localStorage.getItem("isProUser");
-
-if(isPro === "true"){
-
-var logo = document.getElementById("logoText");
-var badge = document.getElementById("proBadge");
-
-if(logo && badge){
-logo.classList.add("pro-user");
-badge.innerText = "PRO";
-}
-
-}
-
 </script>
 </body>
 </html>

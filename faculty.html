@@ -16,7 +16,6 @@ color:#ccc;
 word-break: break-all;
 }
 
-/* View.html button styles for consistency */
 .delete-btn { background:#e74c3c; color:white; border:none; padding:6px 15px; border-radius:4px; cursor:pointer; }
 </style>
 
@@ -37,37 +36,8 @@ const db = firebase.firestore();
 firebase.auth().onAuthStateChanged(function(user){
     if(user){
         document.body.style.display="block";
-
-        // 1. YOUR MANUAL LIST (No changes, nothing removed)
-        const proUsers = [
-            "staff@college.com",
-            "hod@college.com",
-            "gayathridevi182005@gmail.com",
-        ];
-
-        let email = user.email.trim().toLowerCase();
-
-        // 2. THE HYBRID CHECK (Manual + Automatic Database)
-        if(proUsers.includes(email)){
-            localStorage.setItem("isProUser","true");
-        } else {
-            // AUTOMATIC CHECK: Listen to Firestore for Razorpay payments
-            db.collection("users").doc(user.uid).onSnapshot((doc) => {
-                if(doc.exists && doc.data().isPro === true){
-                    localStorage.setItem("isProUser", "true");
-                    // Sync the UI badge
-                    const badge = document.getElementById("proBadge");
-                    if(badge) { 
-                        document.getElementById("logoText").classList.add("pro-user");
-                        badge.innerText = "PRO"; 
-                    }
-                } else {
-                    localStorage.setItem("isProUser", "false");
-                    localStorage.removeItem("proUsers");
-                }
-            });
-        }
-
+        
+        // Removed PRO Tug-of-War logic. Everyone is now treated equally.
         document.getElementById("userEmail").innerText=user.email;
         loadStaff(); 
     }
@@ -89,7 +59,7 @@ firebase.auth().onAuthStateChanged(function(user){
 <div class="sidebar">
 
 <div class="sidebar-header">
-<h1 id="logoText">VELS <span id="proBadge"></span></h1>
+<h1 id="logoText">VELS</h1>
 <p>Timetable Management System</p>
 </div>
 
@@ -101,7 +71,6 @@ firebase.auth().onAuthStateChanged(function(user){
 <li><a href="section.html">Section Management</a></li>
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
-
 <li><a href="faculty.html" class="active">Staff Timetable</a></li>
 <li><a href="guidelines.html">System Guidelines</a></li>
 </ul>
@@ -152,31 +121,20 @@ window.location.replace("index.html");
 });
 }
 
+// Fixed Toast Logic - Cleaner and consistent
 function showCustomToast(message){
-    let toast = document.getElementById("customToast");
+    let toast = document.getElementById("toast");
     if(!toast){
         toast = document.createElement("div");
-        toast.id = "customToast";
-        toast.style.position = "fixed";
-        toast.style.bottom = "20px";
-        toast.style.right = "20px";
-        toast.style.background = "#ffffff"; 
-        toast.style.color = "#333333";      
-        toast.style.border = "1px solid #e2e8f0"; 
-        toast.style.padding = "12px 18px";
-        toast.style.borderRadius = "8px";
-        toast.style.boxShadow = "0 4px 15px rgba(0,0,0,0.1)"; 
-        toast.style.fontSize = "14px";
-        toast.style.zIndex = "9999";
-        toast.style.fontWeight = "bold";
+        toast.id = "toast";
+        toast.className = "toast";
         document.body.appendChild(toast);
     }
     toast.innerText = message;
-    toast.style.display = "block";
-    setTimeout(()=>{ toast.style.display = "none"; }, 3000);
+    toast.classList.add("show");
+    setTimeout(()=>{ toast.classList.remove("show"); }, 3000);
 }
 
-// UPDATED: Now filters staff members by ownerId
 function loadStaff(){
     const user = firebase.auth().currentUser;
     if(!user) return;
@@ -210,7 +168,6 @@ function minutesToTime(mins){
     return h + ":" + m.toString().padStart(2,"0");
 }
 
-// UPDATED: Fetches only data belonging to the logged-in user
 async function loadStaffTimetable(){
   const user = firebase.auth().currentUser;
   if(!user) return;
@@ -256,7 +213,7 @@ async function loadStaffTimetable(){
       ttSnap.forEach((doc) => {
           let data = doc.data();
           for(let sectionKey in data){
-              if(sectionKey === "ownerId") continue; // Skip metadata
+              if(sectionKey === "ownerId") continue; 
               let grid = data[sectionKey];
               for(let d=0; d < daysCount; d++){
                   let row = grid[d] || [];
@@ -339,16 +296,6 @@ async function downloadPDF(sec, staffName, deptName){
     pdf.text(`Department: ${deptName.toUpperCase()}`, 10, 23);
     pdf.addImage(imgData, 'PNG', 10, 30, imgWidth, imgHeight);
     pdf.save(`${staffName}_timetable.pdf`);
-}
-
-var isPro = localStorage.getItem("isProUser");
-if(isPro === "true"){
-    var logo = document.getElementById("logoText");
-    var badge = document.getElementById("proBadge");
-    if(logo && badge){
-        logo.classList.add("pro-user");
-        badge.innerText = "PRO";
-    }
 }
 </script>
 </body>

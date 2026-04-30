@@ -21,44 +21,21 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-firebase.auth().onAuthStateChanged(function(user){
-    if(user){
-        document.body.style.display = "block";
-        
-        // 1. YOUR MANUAL LIST (Faculty & Admin)
-        const proUsers = ["hod@college.com", "gayathridevi182005@gmail.com"];
-        let email = user.email.trim().toLowerCase();
 
-        // 2. THE HYBRID CHECK (Manual List + Automatic Database)
-        if(proUsers.includes(email)){
-            localStorage.setItem("isProUser","true");
-        } else {
-            // AUTOMATIC DATABASE CHECK
-            db.collection("users").doc(user.uid).onSnapshot((doc) => {
-                if(doc.exists && doc.data().isPro === true){
-                    localStorage.setItem("isProUser", "true");
-                    // Update UI if on page
-                    const badge = document.getElementById("proBadge");
-                    if(badge) { 
-                        document.getElementById("logoText").classList.add("pro-user");
-                        badge.innerText = "PRO"; 
-                    }
-                } else {
-                    localStorage.setItem("isProUser", "false");
+        firebase.auth().onAuthStateChanged(function(user){
+            if(user){
+                document.body.style.display = "block";
+                
+                const emailElement = document.getElementById("userEmail");
+                if(emailElement){ 
+                    emailElement.style.visibility = "visible";
+                    emailElement.innerText = user.email; 
                 }
-            });
-        }
-        
-        const emailElement = document.getElementById("userEmail");
-        if(emailElement){ 
-            emailElement.style.visibility = "visible";
-            emailElement.innerText = user.email; 
-        }
-        renderTable();
-    } else {
-        window.location.replace("index.html");
-    }
-});
+                renderTable();
+            } else {
+                window.location.replace("index.html");
+            }
+        });
     </script>
 </head>
 
@@ -66,12 +43,12 @@ firebase.auth().onAuthStateChanged(function(user){
     <div class="layout">
         <div class="sidebar">
             <div class="sidebar-header">
-                <h1 id="logoText">VELS <span id="proBadge"></span></h1>
+                <h1 id="logoText">VELS</h1>
                 <p>Timetable Management System</p>
             </div>
             <ul>
                 <li><a href="dashboard.html">Dashboard</a></li>
-                <li><a href="department.html">Department Setup</a></li>
+                <li><a href="department.html" class="active">Department Setup</a></li>
                 <li><a href="subject.html">Subject Management</a></li>
                 <li><a href="staff.html">Staff Management</a></li>
                 <li><a href="section.html">Section Management</a></li>
@@ -142,7 +119,6 @@ firebase.auth().onAuthStateChanged(function(user){
             setTimeout(() => { toast.classList.remove("show"); }, 3000);
         }
 
-        // UPDATED: Filters by ownerId to ensure user only deletes their own records
         window.deleteDepartment = async function(docId, deptToDelete) {
             const user = firebase.auth().currentUser;
             if(!user) return;
@@ -155,15 +131,12 @@ firebase.auth().onAuthStateChanged(function(user){
             try {
                 showToast("Cleaning up all linked records...");
 
-                // 1. Delete linked Subjects for this user
                 const subjSnap = await db.collection("subjects").where("ownerId", "==", user.uid).where("dept", "==", deptToDelete).get();
                 subjSnap.forEach(doc => doc.ref.delete());
 
-                // 2. Delete linked Staff for this user
                 const staffSnap = await db.collection("staff").where("ownerId", "==", user.uid).where("dept", "==", deptToDelete).get();
                 staffSnap.forEach(doc => doc.ref.delete());
 
-                // 3. Delete linked Timetables for this user
                 const ttSnap = await db.collection("timetables").where("ownerId", "==", user.uid).get();
                 ttSnap.forEach(doc => {
                     if(doc.id.toLowerCase().includes(deptLower) || doc.id.toLowerCase().includes(cleanKey.toLowerCase())){
@@ -171,7 +144,6 @@ firebase.auth().onAuthStateChanged(function(user){
                     }
                 });
 
-                // 4. Delete the Section lists for this user
                 const secSnap = await db.collection("sections").where("ownerId", "==", user.uid).get();
                 secSnap.forEach(doc => {
                     if(doc.id.toLowerCase().includes(deptLower)){
@@ -179,10 +151,8 @@ firebase.auth().onAuthStateChanged(function(user){
                     }
                 });
 
-                // 5. Finally, delete the Department entry itself
                 await db.collection("departments").doc(docId).delete();
 
-                // 6. Local storage cleanup
                 const dataKeys = ["subjects", "staff"];
                 dataKeys.forEach(key => {
                     let items = JSON.parse(localStorage.getItem(key)) || [];
@@ -201,7 +171,6 @@ firebase.auth().onAuthStateChanged(function(user){
             }
         };
 
-        // UPDATED: Now fetches only departments belonging to the logged-in user
         function renderTable() {
             const user = firebase.auth().currentUser;
             if(!user) return;
@@ -235,7 +204,6 @@ firebase.auth().onAuthStateChanged(function(user){
             });
         }
 
-        // UPDATED: Now saves the ownerId (User UID) with the department data
         function addDepartment() {
             const user = firebase.auth().currentUser;
             if(!user) return;
@@ -269,34 +237,21 @@ firebase.auth().onAuthStateChanged(function(user){
                 lunchDuration, 
                 snackAfter: snackAfter ? Number(snackAfter) : null, 
                 snackDuration: snackDuration ? Number(snackDuration) : null,
-                ownerId: user.uid // Link this department to the user
+                ownerId: user.uid 
             };
 
-            const isPro = localStorage.getItem("isProUser") === "true";
-            
-            db.collection("departments").where("ownerId", "==", user.uid).get().then((snap) => {
-                if (!isPro && snap.size >= 1) { 
-                    showToast("Free plan allows only 1 department. Upgrade to Pro."); 
-                    return; 
-                }
-
-                db.collection("departments").add(department).then(() => {
-                    renderTable();
-                    showToast("Department Added Successfully");
-                    document.getElementById("deptName").value = "";
-                }).catch((error) => {
-                    console.error("Error adding document: ", error);
-                });
+            // Limit removed! Instantly adds unlimited departments
+            db.collection("departments").add(department).then(() => {
+                renderTable();
+                showToast("Department Added Successfully");
+                document.getElementById("deptName").value = "";
+                document.getElementById("semester").value = "";
+            }).catch((error) => {
+                console.error("Error adding document: ", error);
             });
         }
 
         document.addEventListener("DOMContentLoaded", function () {
-            if(localStorage.getItem("isProUser") === "true"){
-                const logo = document.getElementById("logoText");
-                const badge = document.getElementById("proBadge");
-                if(logo && badge){ logo.classList.add("pro-user"); badge.innerText = "PRO"; }
-            }
-            
             const sectionsInput = document.getElementById("sections");
             if(sectionsInput){
                 sectionsInput.addEventListener("input", function () {

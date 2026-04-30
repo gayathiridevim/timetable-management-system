@@ -38,37 +38,9 @@ firebase.auth().onAuthStateChanged(function(user){
     if(user){
         document.body.style.display = "block";
 
-        // 1. YOUR MANUAL LIST (Strictly No Changes)
-        const proUsers = [
-            "staff@college.com",
-            "hod@college.com",
-            "gayathridevi182005@gmail.com",
-        ];
+        // Set to true so all features are unlimited for everyone
+        localStorage.setItem("isProUser","true");
 
-        let email = user.email.trim().toLowerCase();
-
-        // 2. THE HYBRID CHECK (Manual List + Automatic Database)
-        if(proUsers.includes(email)){
-            localStorage.setItem("isProUser","true");
-        } else {
-            // AUTOMATIC CHECK: Listen to Firestore for Razorpay payments
-            db.collection("users").doc(user.uid).onSnapshot((doc) => {
-                if(doc.exists && doc.data().isPro === true){
-                    localStorage.setItem("isProUser", "true");
-                    // Sync the UI badge
-                    const badge = document.getElementById("proBadge");
-                    if(badge) { 
-                        document.getElementById("logoText").classList.add("pro-user");
-                        badge.innerText = "PRO"; 
-                    }
-                } else {
-                    localStorage.setItem("isProUser", "false");
-                    localStorage.removeItem("proUsers");
-                }
-            });
-        }
-
-        // 3. YOUR ORIGINAL EMAIL DISPLAY (Nothing Removed)
         const emailElement = document.getElementById("userEmail");
         if(emailElement){
             emailElement.innerText = user.email;
@@ -90,7 +62,7 @@ firebase.auth().onAuthStateChanged(function(user){
 <div class="sidebar">
 
 <div class="sidebar-header">
-<h1 id="logoText">VELS <span id="proBadge"></span></h1>
+<h1 id="logoText">VELS</h1>
 <p>Timetable Management System</p>
 </div>
 
@@ -259,10 +231,6 @@ window.location.replace("index.html");
 
 }
 
-
-if(localStorage.getItem("isProUser") === null){
-localStorage.setItem("isProUser","false");
-}
 function showToast(message){
 
 const toast = document.getElementById("toastMsg");
@@ -314,27 +282,6 @@ document.getElementById("qMessage").value="";
 console.error(error);
 showToast("Error sending query");
 });
-
-}
-/* CHECK PRO STATUS */
-
-if(localStorage.getItem("isProUser") === null){
-localStorage.setItem("isProUser","false");
-}
-</script>
-<script>
-
-var isPro = localStorage.getItem("isProUser");
-
-if(isPro === "true"){
-
-var logo = document.getElementById("logoText");
-var badge = document.getElementById("proBadge");
-
-if(logo && badge){
-logo.classList.add("pro-user");
-badge.innerText = "PRO";
-}
 
 }
 

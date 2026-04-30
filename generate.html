@@ -26,43 +26,20 @@
         const db = firebase.firestore();
 
         firebase.auth().onAuthStateChanged(function(user){
-    if(user){
-        document.body.style.display = "block";
-        
-        // 1. YOUR MANUAL LIST (Strictly No Changes)
-        const proUsers = ["hod@college.com", "gayathridevi182005@gmail.com"];
-        let email = user.email.trim().toLowerCase();
-
-        // 2. THE HYBRID CHECK (Manual List + Automatic Database)
-        if(proUsers.includes(email)){
-            localStorage.setItem("isProUser","true");
-        } else {
-            // AUTOMATIC CHECK: Listen to Firestore for Razorpay payments
-            db.collection("users").doc(user.uid).onSnapshot((doc) => {
-                if(doc.exists && doc.data().isPro === true){
-                    localStorage.setItem("isProUser", "true");
-                    // Sync the UI badge
-                    const badge = document.getElementById("proBadge");
-                    if(badge) { 
-                        document.getElementById("logoText").classList.add("pro-user");
-                        badge.innerText = "PRO"; 
-                    }
-                } else {
-                    localStorage.setItem("isProUser", "false");
-                    localStorage.removeItem("proUsers");
-                }
-            });
-        }
-        
-        const emailElement = document.getElementById("userEmail");
-        if(emailElement) emailElement.innerText = user.email;
-        
-        // 3. YOUR ORIGINAL FUNCTION (Nothing Removed)
-        loadDepartments(); 
-    } else {
-        window.location.replace("index.html");
-    }
-});
+            if(user){
+                document.body.style.display = "block";
+                
+                // Set global Pro flag to true to bypass any remaining UI restrictions
+                localStorage.setItem("isProUser","true");
+                
+                const emailElement = document.getElementById("userEmail");
+                if(emailElement) emailElement.innerText = user.email;
+                
+                loadDepartments(); 
+            } else {
+                window.location.replace("index.html");
+            }
+        });
     </script>
 </head>
 
@@ -70,7 +47,7 @@
     <div class="layout">
         <div class="sidebar">
             <div class="sidebar-header">
-                <h1 id="logoText">VELS <span id="proBadge"></span></h1>
+                <h1 id="logoText">VELS</h1>
                 <p>Timetable Management System</p>
             </div>
             <ul>
@@ -113,11 +90,6 @@
     <script>
         document.addEventListener("DOMContentLoaded", function(){
             document.getElementById("departmentSelect").addEventListener("change", showDepartmentDetails);
-            if(localStorage.getItem("isProUser") === "true"){
-                const logo = document.getElementById("logoText");
-                const badge = document.getElementById("proBadge");
-                if(logo && badge){ logo.classList.add("pro-user"); badge.innerText = "PRO"; }
-            }
         });
 
         function logout(){ firebase.auth().signOut().then(()=>window.location.replace("index.html")); }
@@ -128,7 +100,6 @@
             setTimeout(()=>t.classList.remove("show"), 3000);
         }
 
-        // UPDATED: Now filters by ownerId
         function loadDepartments(){
             const user = firebase.auth().currentUser;
             if(!user) return;
@@ -147,7 +118,6 @@
             });
         }
 
-        // UPDATED: Now filters by ownerId
         async function showDepartmentDetails(){
             const user = firebase.auth().currentUser;
             if(!user) return;
@@ -167,7 +137,6 @@
             </div>`;
         }
 
-        // UPDATED: Uses ownerId for all logic and saves ownerId with the final table
         async function generateTimetable(){
             const user = firebase.auth().currentUser;
             if(!user) return;
@@ -180,7 +149,6 @@
             msgDiv.innerText = "Generating timetable, please wait...";
 
             try {
-                // Fetch ONLY current user's data
                 const [deptSnap, subjSnap, staffSnap, ttSnap] = await Promise.all([
                     db.collection("departments").where("ownerId", "==", user.uid).get(),
                     db.collection("subjects").where("ownerId", "==", user.uid).get(),
@@ -238,7 +206,7 @@
                     }
                 });
 
-                let finalResult = { ownerId: user.uid }; // ADD OWNER ID TO RESULT
+                let finalResult = { ownerId: user.uid }; 
 
                 for(let section of sections){
                     let queue = [];

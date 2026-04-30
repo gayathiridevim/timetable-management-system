@@ -11,6 +11,7 @@ display:none;
 word-break: break-all;
 }
 </style>
+<!-- FIREBASE COMPAT -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -30,16 +31,23 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 firebase.auth().onAuthStateChanged(function(user){
+    if(user){
+        document.body.style.display = "block";
+        
+        // Unlocking all features by default
+        localStorage.setItem("isProUser", "true");
 
-if(user){
-document.body.style.display = "block";
-loadDepartments(); // Load only after user is verified
-renderSubjects();   // Load only after user is verified
-}
-else{
-window.location.replace("index.html");
-}
+        const emailElement = document.getElementById("userEmail");
+        if(emailElement){
+            emailElement.innerText = user.email;
+        }
 
+        loadDepartments(); 
+        renderSubjects();   
+    }
+    else{
+        window.location.replace("index.html");
+    }
 });
 </script>
 
@@ -52,7 +60,7 @@ window.location.replace("index.html");
 <div class="sidebar">
 
 <div class="sidebar-header">
-<h1 id="logoText">VELS <span id="proBadge"></span></h1>
+<h1 id="logoText">VELS</h1>
 <p>Timetable Management System</p>
 </div>
 
@@ -64,7 +72,6 @@ window.location.replace("index.html");
 <li><a href="section.html">Section Management</a></li>
 <li><a href="generate.html">Generate Timetable</a></li>
 <li><a href="view.html">View Timetable</a></li>
-
 <li><a href="faculty.html">Staff Timetable</a></li>
 <li><a href="guidelines.html">System Guidelines</a></li>
 </ul>
@@ -86,12 +93,9 @@ window.location.replace("index.html");
 <div class="content-area">
 
 <div class="top-navbar">
-
 <span class="system-title">
 VELS Faculty Scheduling System
 </span>
-
-
 </div>
 
 <div class="dashboard-header">
@@ -101,11 +105,8 @@ VELS Faculty Scheduling System
 
 
 <div class="form-card">
-
 <h3>Add New Subject</h3>
-
 <div class="form-grid">
-
 <div>
 <label>Subject Name</label>
 <input type="text" id="subjectName" placeholder="e.g. Java">
@@ -157,17 +158,13 @@ VELS Faculty Scheduling System
 <div class="add-btn-box">
 <button onclick="addSubject()">+ Add Subject</button>
 </div>
-
 </div>
-
 </div>
 
 
 
 <div class="table-card">
-
 <table>
-
 <thead>
 <tr>
 <th>Name</th>
@@ -179,11 +176,8 @@ VELS Faculty Scheduling System
 <th>Actions</th>
 </tr>
 </thead>
-
 <tbody id="subjectTable"></tbody>
-
 </table>
-
 </div>
 
 </div>
@@ -196,215 +190,125 @@ VELS Faculty Scheduling System
 
 <script>
 
-firebase.auth().onAuthStateChanged(function(user){
-    if(user){
-        document.body.style.display = "block";
-
-        // 1. YOUR MANUAL LIST (Strictly No Changes)
-        const proUsers = [
-            "staff@college.com",
-            "hod@college.com",
-            "gayathridevi182005@gmail.com",
-        ];
-
-        let email = user.email.trim().toLowerCase();
-
-        // 2. THE HYBRID CHECK (Manual List + Automatic Database)
-        if(proUsers.includes(email)){
-            localStorage.setItem("isProUser","true");
-        } else {
-            // AUTOMATIC CHECK: Listen to Firestore for Razorpay payments
-            // This checks the 'users' collection you created in Firestore
-            db.collection("users").doc(user.uid).onSnapshot((doc) => {
-                if(doc.exists && doc.data().isPro === true){
-                    localStorage.setItem("isProUser", "true");
-                    // Sync the UI badge automatically
-                    const logo = document.getElementById("logoText");
-                    const badge = document.getElementById("proBadge");
-                    if(logo && badge) { 
-                        logo.classList.add("pro-user");
-                        badge.innerText = "PRO"; 
-                    }
-                } else {
-                    localStorage.setItem("isProUser", "false");
-                    localStorage.removeItem("proUsers");
-                }
-            });
-        }
-
-        // 3. YOUR ORIGINAL EMAIL DISPLAY (Nothing Removed)
-        const emailElement = document.getElementById("userEmail");
-        if(emailElement){
-            emailElement.innerText = user.email;
-        }
-
-    } else {
-        window.location.replace("index.html");
-    }
-});
-
-
 function logout(){
-
-if (typeof firebase !== "undefined") {
-    firebase.auth().signOut().catch(()=>{});
-}
-
-localStorage.removeItem("isLoggedIn");
-localStorage.removeItem("userEmail");
-
-window.location.replace("index.html");
-
+    if (typeof firebase !== "undefined") {
+        firebase.auth().signOut().catch(()=>{});
+    }
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("userEmail");
+    window.location.replace("index.html");
 }
 
 
 function showToast(message){
-
-const toast = document.getElementById("toast");
-
-toast.innerText = message;
-toast.classList.add("show");
-
-setTimeout(()=>{
-toast.classList.remove("show");
-},3000);
-
+    const toast = document.getElementById("toast");
+    toast.innerText = message;
+    toast.classList.add("show");
+    setTimeout(()=>{
+        toast.classList.remove("show");
+    },3000);
 }
 
-
-/* UPDATED: FETCH ONLY CURRENT USER'S DEPARTMENTS */
 
 function loadDepartments(){
-const user = firebase.auth().currentUser;
-if(!user) return;
+    const user = firebase.auth().currentUser;
+    if(!user) return;
 
-const deptSelect = document.getElementById("subjectDept");
-deptSelect.innerHTML = `<option value="">Select Department</option>`;
+    const deptSelect = document.getElementById("subjectDept");
+    deptSelect.innerHTML = `<option value="">Select Department</option>`;
 
-db.collection("departments").where("ownerId", "==", user.uid).get().then((snap) => {
-    snap.forEach(doc => {
-        let dep = doc.data();
-        deptSelect.innerHTML += `<option value="${dep.name}">${dep.name}</option>`;
-    });
-}).catch(err => console.log("Error loading departments", err));
-
+    db.collection("departments").where("ownerId", "==", user.uid).get().then((snap) => {
+        snap.forEach(doc => {
+            let dep = doc.data();
+            deptSelect.innerHTML += `<option value="${dep.name}">${dep.name}</option>`;
+        });
+    }).catch(err => console.log("Error loading departments", err));
 }
 
-
-
-/* UPDATED: ADD SUBJECT WITH ownerId */
 
 function addSubject(){
-const user = firebase.auth().currentUser;
-if(!user) return;
+    const user = firebase.auth().currentUser;
+    if(!user) return;
 
-const name = document.getElementById("subjectName").value.trim();
-const code = document.getElementById("subjectCode").value.trim();
-const credits = document.getElementById("credits").value;
-const type = document.getElementById("subjectType").value;
-const dept = document.getElementById("subjectDept").value;
-const sem = document.getElementById("subjectSem").value;
+    const name = document.getElementById("subjectName").value.trim();
+    const code = document.getElementById("subjectCode").value.trim();
+    const credits = document.getElementById("credits").value;
+    const type = document.getElementById("subjectType").value;
+    const dept = document.getElementById("subjectDept").value;
+    const sem = document.getElementById("subjectSem").value;
 
-if(!name || !code || !credits || !type || !dept || !sem){
-    showToast("Please fill all details");
-    return;
+    if(!name || !code || !credits || !type || !dept || !sem){
+        showToast("Please fill all details");
+        return;
+    }
+
+    const newSubject = {
+        name, 
+        code, 
+        credits, 
+        type, 
+        dept, 
+        sem,
+        ownerId: user.uid 
+    };
+
+    db.collection("subjects").add(newSubject).then(() => {
+        showToast("Subject Added Successfully");
+        document.getElementById("subjectName").value = "";
+        document.getElementById("subjectCode").value = "";
+        document.getElementById("credits").value = "";
+        renderSubjects();
+    }).catch(err => {
+        console.error("Error adding subject: ", err);
+        showToast("Error adding subject");
+    });
 }
 
-const newSubject = {
-    name, 
-    code, 
-    credits, 
-    type, 
-    dept, 
-    sem,
-    ownerId: user.uid // Tag data to the user
-};
-
-db.collection("subjects").add(newSubject).then(() => {
-    showToast("Subject Added Successfully");
-    
-    document.getElementById("subjectName").value = "";
-    document.getElementById("subjectCode").value = "";
-    document.getElementById("credits").value = "";
-    
-    renderSubjects();
-}).catch(err => {
-    console.error("Error adding subject: ", err);
-    showToast("Error adding subject");
-});
-
-}
-
-
-/* UPDATED: READ ONLY CURRENT USER'S SUBJECTS */
 
 function renderSubjects(){
-const user = firebase.auth().currentUser;
-if(!user) return;
+    const user = firebase.auth().currentUser;
+    if(!user) return;
 
-const table = document.getElementById("subjectTable");
-table.innerHTML = "";
+    const table = document.getElementById("subjectTable");
+    table.innerHTML = "";
+    let localBackup = [];
 
-let localBackup = [];
+    db.collection("subjects").where("ownerId", "==", user.uid).get().then((snap) => {
+        snap.forEach((doc) => {
+            const sub = doc.data();
+            const docId = doc.id;
+            localBackup.push(sub);
 
-db.collection("subjects").where("ownerId", "==", user.uid).get().then((snap) => {
-    snap.forEach((doc) => {
-        const sub = doc.data();
-        const docId = doc.id;
-        
-        localBackup.push(sub);
-
-        table.innerHTML += `
-        <tr>
-        <td>${sub.name}</td>
-        <td>${sub.code}</td>
-        <td>${sub.credits}</td>
-        <td>${sub.type}</td>
-        <td>${sub.dept}</td>
-        <td>${sub.sem}</td>
-        <td>
-        <button class="delete-icon-btn" onclick="deleteSubject('${docId}')">
-        Delete
-        </button>
-        </td>
-        </tr>
-        `;
-    });
-    
-    localStorage.setItem("subjects", JSON.stringify(localBackup));
-}).catch(err => console.log("Error loading subjects", err));
-
+            table.innerHTML += `
+            <tr>
+            <td>${sub.name}</td>
+            <td>${sub.code}</td>
+            <td>${sub.credits}</td>
+            <td>${sub.type}</td>
+            <td>${sub.dept}</td>
+            <td>${sub.sem}</td>
+            <td>
+            <button class="delete-icon-btn" onclick="deleteSubject('${docId}')">
+            Delete
+            </button>
+            </td>
+            </tr>
+            `;
+        });
+        localStorage.setItem("subjects", JSON.stringify(localBackup));
+    }).catch(err => console.log("Error loading subjects", err));
 }
 
-
-/* UPDATED: DELETE SUBJECT */
 
 function deleteSubject(docId){
-
-db.collection("subjects").doc(docId).delete().then(() => {
-    renderSubjects();
-    showToast("Subject Deleted Successfully");
-}).catch(err => {
-    console.error("Error removing subject: ", err);
-    showToast("Error deleting subject");
-});
-
+    db.collection("subjects").doc(docId).delete().then(() => {
+        renderSubjects();
+        showToast("Subject Deleted Successfully");
+    }).catch(err => {
+        console.error("Error removing subject: ", err);
+        showToast("Error deleting subject");
+    });
 }
-
-var isPro = localStorage.getItem("isProUser");
-
-if(isPro === "true"){
-
-var logo = document.getElementById("logoText");
-var badge = document.getElementById("proBadge");
-
-if(logo && badge){
-logo.classList.add("pro-user");
-badge.innerText = "PRO";
-}
-
-}
-
 </script>
 </body>
 </html>
