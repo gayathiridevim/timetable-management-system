@@ -185,7 +185,7 @@
                     const docId = doc.id;
                     localBackup.push(dep);
                     
-                    const totalWeek = Number(dep.days) * Number(dep.periods);
+                    const totalWeek = Number(dep.days) * Number(dep.periods) * Number(dep.sections);
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${dep.name}</td>
@@ -240,7 +240,6 @@
                 ownerId: user.uid 
             };
 
-            // Limit removed! Instantly adds unlimited departments
             db.collection("departments").add(department).then(() => {
                 renderTable();
                 showToast("Department Added Successfully");
